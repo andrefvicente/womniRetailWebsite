@@ -1,0 +1,287 @@
+---
+export const prerender = true;
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import { useTranslations } from '../i18n';
+
+const t = useTranslations(Astro.currentLocale);
+
+const cartI18n = {
+	loading: t.cart.loading,
+	empty: t.cart.empty,
+	shopRugs: t.cart.shopRugs,
+	size: t.cart.size,
+	color: t.cart.color,
+	qty: t.cart.qty,
+	remove: t.cart.remove,
+	subtotal: t.cart.subtotal,
+	shipping: t.cart.shipping,
+	shippingCalc: t.cart.shippingCalc,
+	shippingFree: t.cart.shippingFree,
+	total: t.cart.total,
+	freeShippingNote: t.cart.freeShippingNote,
+	checkout: t.cart.checkout,
+	continueShopping: t.cart.continueShopping,
+	locale: 'pt-PT',
+	currency: 'EUR',
+	freeShippingMin: 99,
+	shippingCost: 9.95,
+};
+---
+
+<BaseLayout title={t.cart.title} description={t.cart.metaDescription}>
+	<div class="container cart-page">
+		<Breadcrumbs items={[{ label: t.brand, href: '/' }, { label: t.cart.title }]} />
+		<h1>{t.cart.title}</h1>
+
+		<div class="cart-page__layout">
+			<div data-cart-items class="cart-page__items">
+				<p class="cart-page__loading">{t.cart.loading}</p>
+			</div>
+			<aside class="cart-page__summary" data-cart-summary hidden>
+				<h2>{t.cart.summary}</h2>
+				<div class="cart-page__row">
+					<span>{t.cart.subtotal}</span>
+					<span data-subtotal>0 €</span>
+				</div>
+				<div class="cart-page__row">
+					<span>{t.cart.shipping}</span>
+					<span data-shipping>{t.cart.shippingCalc}</span>
+				</div>
+				<div class="cart-page__row cart-page__row--total">
+					<span>{t.cart.total}</span>
+					<span data-total>0 €</span>
+				</div>
+				<p class="cart-page__note">{t.cart.freeShippingNote}</p>
+				<button type="button" class="btn btn--accent cart-page__checkout">{t.cart.checkout}</button>
+				<a href="/c/rugs" class="cart-page__continue">{t.cart.continueShopping}</a>
+			</aside>
+		</div>
+
+		<div class="cart-page__empty" data-cart-empty hidden>
+			<p>{t.cart.empty}</p>
+			<a href="/c/rugs" class="btn">{t.cart.shopRugs}</a>
+		</div>
+	</div>
+</BaseLayout>
+
+<script define:vars={{ cartI18n }}>
+	function formatPrice(n) {
+		return new Intl.NumberFormat(cartI18n.locale, {
+			style: 'currency',
+			currency: cartI18n.currency,
+			maximumFractionDigits: 0,
+		}).format(n);
+	}
+
+	function renderCart() {
+		const itemsEl = document.querySelector('[data-cart-items]');
+		const summaryEl = document.querySelector('[data-cart-summary]');
+		const emptyEl = document.querySelector('[data-cart-empty]');
+		const subtotalEl = document.querySelector('[data-subtotal]');
+		const totalEl = document.querySelector('[data-total]');
+		const shippingEl = document.querySelector('[data-shipping]');
+
+		const cart = JSON.parse(localStorage.getItem('womni-cart') || '[]');
+
+		if (!cart.length) {
+			if (itemsEl) itemsEl.innerHTML = '';
+			summaryEl?.setAttribute('hidden', '');
+			emptyEl?.removeAttribute('hidden');
+			return;
+		}
+
+		emptyEl?.setAttribute('hidden', '');
+		summaryEl?.removeAttribute('hidden');
+
+		const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+		const shipping = subtotal >= cartI18n.freeShippingMin ? 0 : cartI18n.shippingCost;
+		const total = subtotal + shipping;
+
+		if (itemsEl) {
+			itemsEl.innerHTML = cart
+				.map(
+					(item) => `
+				<article class="cart-item" data-id="${item.id}">
+					<img src="${item.image}" alt="${item.name}" width="120" height="150" />
+					<div class="cart-item__details">
+						<h3><a href="/product/${item.slug}">${item.name}</a></h3>
+						<p>${cartI18n.size}: ${String(item.size).replace('x', ' × ')} cm · ${cartI18n.color}: ${item.color}</p>
+						<p class="cart-item__price">${formatPrice(item.price)}</p>
+					</div>
+					<div class="cart-item__actions">
+						<label>${cartI18n.qty} <input type="number" min="1" max="10" value="${item.qty}" data-qty data-id="${item.id}" /></label>
+						<button type="button" class="cart-item__remove" data-remove="${item.id}">${cartI18n.remove}</button>
+					</div>
+					<p class="cart-item__line">${formatPrice(item.price * item.qty)}</p>
+				</article>
+			`,
+				)
+				.join('');
+		}
+
+		if (subtotalEl) subtotalEl.textContent = formatPrice(subtotal);
+		if (totalEl) totalEl.textContent = formatPrice(total);
+		if (shippingEl)
+			shippingEl.textContent = shipping === 0 ? cartI18n.shippingFree : formatPrice(shipping);
+
+		itemsEl?.querySelectorAll('[data-qty]').forEach((input) => {
+			input.addEventListener('change', () => {
+				const id = input.getAttribute('data-id');
+				const cart = JSON.parse(localStorage.getItem('womni-cart') || '[]');
+				const item = cart.find((i) => i.id === id);
+				if (item) item.qty = Math.max(1, Number(input.value));
+				localStorage.setItem('womni-cart', JSON.stringify(cart));
+				window.dispatchEvent(new Event('cart-updated'));
+				renderCart();
+			});
+		});
+
+		itemsEl?.querySelectorAll('[data-remove]').forEach((btn) => {
+			btn.addEventListener('click', () => {
+				const id = btn.getAttribute('data-remove');
+				let cart = JSON.parse(localStorage.getItem('womni-cart') || '[]');
+				cart = cart.filter((i) => i.id !== id);
+				localStorage.setItem('womni-cart', JSON.stringify(cart));
+				window.dispatchEvent(new Event('cart-updated'));
+				renderCart();
+			});
+		});
+	}
+
+	renderCart();
+</script>
+
+<style>
+	.cart-page {
+		padding: 1.5rem 0 4rem;
+	}
+	.cart-page h1 {
+		margin: 1.5rem 0 2rem;
+		font-family: var(--font-display);
+		font-size: 2.5rem;
+		font-weight: 500;
+	}
+	.cart-page__layout {
+		display: grid;
+		grid-template-columns: 1fr 320px;
+		gap: 3rem;
+		align-items: start;
+	}
+	.cart-item {
+		display: grid;
+		grid-template-columns: 120px 1fr auto auto;
+		gap: 1.5rem;
+		align-items: center;
+		padding: 1.5rem 0;
+		border-bottom: 1px solid var(--color-border);
+	}
+	.cart-item img {
+		aspect-ratio: 4 / 5;
+		object-fit: cover;
+		background: #f0eeeb;
+	}
+	.cart-item__details h3 {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 1.25rem;
+		font-weight: 500;
+	}
+	.cart-item__details p {
+		margin: 0.35rem 0 0;
+		font-size: 0.875rem;
+		color: var(--color-muted);
+	}
+	.cart-item__price {
+		font-weight: 600;
+		color: var(--color-ink) !important;
+	}
+	.cart-item__actions {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		font-size: 0.875rem;
+	}
+	.cart-item__actions input {
+		width: 3rem;
+		padding: 0.35rem;
+		border: 1px solid var(--color-border);
+	}
+	.cart-item__remove {
+		border: none;
+		background: none;
+		color: var(--color-muted);
+		cursor: pointer;
+		text-decoration: underline;
+		font-size: 0.8125rem;
+		padding: 0;
+	}
+	.cart-item__line {
+		font-weight: 600;
+		text-align: right;
+	}
+	.cart-page__summary {
+		padding: 1.5rem;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		position: sticky;
+		top: calc(var(--header-height) + 1rem);
+	}
+	.cart-page__summary h2 {
+		margin: 0 0 1.25rem;
+		font-size: 1rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+	.cart-page__row {
+		display: flex;
+		justify-content: space-between;
+		padding: 0.5rem 0;
+		font-size: 0.9375rem;
+	}
+	.cart-page__row--total {
+		margin-top: 0.5rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--color-border);
+		font-weight: 600;
+		font-size: 1.125rem;
+	}
+	.cart-page__note {
+		margin: 0.75rem 0 1.25rem;
+		font-size: 0.8125rem;
+		color: var(--color-muted);
+	}
+	.cart-page__checkout {
+		width: 100%;
+	}
+	.cart-page__continue {
+		display: block;
+		margin-top: 1rem;
+		text-align: center;
+		font-size: 0.875rem;
+		text-decoration: underline;
+		color: var(--color-muted);
+	}
+	.cart-page__empty {
+		text-align: center;
+		padding: 4rem 0;
+	}
+	.cart-page__empty p {
+		margin-bottom: 1.5rem;
+		color: var(--color-muted);
+	}
+	@media (max-width: 768px) {
+		.cart-page__layout {
+			grid-template-columns: 1fr;
+		}
+		.cart-item {
+			grid-template-columns: 80px 1fr;
+			grid-template-rows: auto auto;
+		}
+		.cart-item__line {
+			grid-column: 2;
+		}
+	}
+</style>

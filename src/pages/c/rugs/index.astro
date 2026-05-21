@@ -1,0 +1,295 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import ProductCard from '../../../components/ProductCard.astro';
+import FilterSidebar from '../../../components/FilterSidebar.astro';
+import { getLocalizedProducts, useTranslations } from '../../../i18n';
+
+const t = useTranslations(Astro.currentLocale);
+const localized = await getLocalizedProducts(Astro.currentLocale);
+
+const productData = localized.map((p) => ({
+	slug: p.slug,
+	name: p.name,
+	price: p.price,
+	originalPrice: p.originalPrice ?? null,
+	material: p.material,
+	style: p.style,
+	room: p.room,
+	colors: p.colors,
+	badge: p.badge ?? null,
+	rating: p.rating,
+}));
+
+const sortKeys = ['popular', 'price-asc', 'price-desc', 'new', 'rating'] as const;
+---
+
+<BaseLayout title={t.catalog.title} description={t.catalog.metaDescription}>
+	<div class="container listing">
+		<Breadcrumbs items={[{ label: t.brand, href: '/' }, { label: t.catalog.title }]} />
+
+		<header class="listing__header">
+			<div>
+				<h1>{t.catalog.title}</h1>
+				<p class="listing__count">
+					<span data-result-count>{localized.length}</span> {t.catalog.productCount}
+				</p>
+			</div>
+			<div class="listing__toolbar">
+				<button type="button" class="listing__filter-btn" data-open-filters>{t.catalog.filters}</button>
+				<label class="listing__sort">
+					<span class="sr-only">{t.catalog.sortLabel}</span>
+					<select name="sort" data-sort>
+						{sortKeys.map((key) => (
+							<option value={key}>{t.catalog.sort[key]}</option>
+						))}
+					</select>
+				</label>
+			</div>
+		</header>
+
+		<div class="listing__layout">
+			<FilterSidebar />
+			<div class="listing__main">
+				<div class="active-filters" data-active-filters hidden></div>
+				<div class="product-grid" data-product-grid>
+					{localized.map((product) => (
+						<ProductCard product={product} />
+					))}
+				</div>
+				<p class="listing__empty" data-empty hidden>{t.catalog.empty}</p>
+			</div>
+		</div>
+	</div>
+</BaseLayout>
+
+<script define:vars={{ productData, priceUpToTemplate: 'Até {max} €', priceMax: 800 }}>
+	const grid = document.querySelector('[data-product-grid]');
+	const cards = [...document.querySelectorAll('[data-product-card]')];
+	const countEl = document.querySelector('[data-result-count]');
+	const emptyEl = document.querySelector('[data-empty]');
+	const sortSelect = document.querySelector('[data-sort]');
+	const priceRange = document.querySelector('[data-filter="price"]');
+	const priceDisplay = document.querySelector('[data-price-display]');
+
+	const params = new URLSearchParams(window.location.search);
+
+	function formatPriceUpTo(max) {
+		return priceUpToTemplate.replace('{max}', String(max));
+	}
+
+	function getActiveFilters() {
+		const filters = { room: [], material: [], style: [], color: [], sale: false, q: '' };
+		if (params.get('sale') === 'true') filters.sale = true;
+		filters.q = (params.get('q') || '').toLowerCase();
+		for (const type of ['room', 'material', 'style', 'color']) {
+			const val = params.get(type);
+			if (val) filters[type] = val.split(',');
+		}
+		document.querySelectorAll('[data-filter]:checked').forEach((el) => {
+			const type = el.getAttribute('data-filter');
+			if (type && type !== 'price' && !filters[type].includes(el.value)) {
+				filters[type].push(el.value);
+			}
+		});
+		return filters;
+	}
+
+	function applyUrlToFilters() {
+		['room', 'material', 'style', 'color'].forEach((key) => {
+			const val = params.get(key);
+			if (val) {
+				document.querySelectorAll(`[data-filter="${key}"]`).forEach((el) => {
+					if (el.value === val) el.checked = true;
+				});
+			}
+		});
+		const sort = params.get('sort');
+		if (sort && sortSelect) sortSelect.value = sort;
+		const q = params.get('q');
+		if (q) {
+			const searchInput = document.getElementById('header-search');
+			if (searchInput) searchInput.value = q;
+		}
+	}
+
+	function matchesFilters(slug, filters, maxPrice) {
+		const p = productData.find((x) => x.slug === slug);
+		if (!p) return false;
+		if (filters.sale && !p.originalPrice) return false;
+		if (filters.q && !p.name.toLowerCase().includes(filters.q)) return false;
+		if (filters.room.length && !filters.room.includes(p.room)) return false;
+		if (filters.material.length && !filters.material.includes(p.material)) return false;
+		if (filters.style.length && !filters.style.includes(p.style)) return false;
+		if (filters.color.length && !p.colors.some((c) => filters.color.includes(c))) return false;
+		if (p.price > maxPrice) return false;
+		const badge = params.get('badge');
+		if (badge && p.badge !== badge) return false;
+		return true;
+	}
+
+	function sortCards(visible, sortBy) {
+		const order = visible.map((card) => card.dataset.slug);
+		const sorted = [...productData]
+			.filter((p) => order.includes(p.slug))
+			.sort((a, b) => {
+				switch (sortBy) {
+					case 'price-asc':
+						return a.price - b.price;
+					case 'price-desc':
+						return b.price - a.price;
+					case 'rating':
+						return b.rating - a.rating;
+					case 'new':
+						return (b.badge === 'new' ? 1 : 0) - (a.badge === 'new' ? 1 : 0);
+					default:
+						return (
+							b.rating * 100 +
+							(b.badge === 'bestseller' ? 10 : 0) -
+							(a.rating * 100 + (a.badge === 'bestseller' ? 10 : 0))
+						);
+				}
+			});
+		sorted.forEach((p) => {
+			const card = cards.find((c) => c.dataset.slug === p.slug);
+			if (card) grid?.appendChild(card);
+		});
+	}
+
+	function updateListing() {
+		const filters = getActiveFilters();
+		const maxPrice = priceRange ? Number(priceRange.value) : priceMax;
+		const sortBy = sortSelect?.value || 'popular';
+		let visible = 0;
+
+		cards.forEach((card) => {
+			const show = matchesFilters(card.dataset.slug, filters, maxPrice);
+			card.style.display = show ? '' : 'none';
+			if (show) visible++;
+		});
+
+		sortCards(cards.filter((c) => c.style.display !== 'none'), sortBy);
+
+		if (countEl) countEl.textContent = String(visible);
+		if (emptyEl) emptyEl.hidden = visible > 0;
+	}
+
+	applyUrlToFilters();
+	updateListing();
+
+	document.querySelectorAll('[data-filter]').forEach((el) => {
+		el.addEventListener('change', updateListing);
+	});
+	priceRange?.addEventListener('input', () => {
+		if (priceDisplay) priceDisplay.textContent = formatPriceUpTo(priceRange.value);
+		updateListing();
+	});
+	sortSelect?.addEventListener('change', updateListing);
+
+	document.querySelector('[data-clear-filters]')?.addEventListener('click', () => {
+		document.querySelectorAll('[data-filter]').forEach((el) => {
+			if (el.type === 'checkbox') el.checked = false;
+			if (el.type === 'range') el.value = String(priceMax);
+		});
+		if (priceDisplay) priceDisplay.textContent = formatPriceUpTo(priceMax);
+		updateListing();
+	});
+
+	document.querySelector('[data-open-filters]')?.addEventListener('click', () => {
+		document.getElementById('filters')?.classList.toggle('filters--open');
+	});
+</script>
+
+<style>
+	.listing {
+		padding: 1.5rem 0 4rem;
+	}
+	.listing__header {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		align-items: flex-end;
+		gap: 1.5rem;
+		margin: 1.5rem 0 2rem;
+	}
+	.listing h1 {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 2.5rem;
+		font-weight: 500;
+	}
+	.listing__count {
+		margin: 0.35rem 0 0;
+		color: var(--color-muted);
+		font-size: 0.875rem;
+	}
+	.listing__toolbar {
+		display: flex;
+		gap: 1rem;
+		align-items: center;
+	}
+	.listing__filter-btn {
+		display: none;
+		padding: 0.6rem 1rem;
+		border: 1px solid var(--color-border);
+		background: var(--color-surface);
+		cursor: pointer;
+		font-size: 0.8125rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+	.listing__sort select {
+		padding: 0.6rem 2rem 0.6rem 0.75rem;
+		border: 1px solid var(--color-border);
+		background: var(--color-surface);
+		cursor: pointer;
+		font-size: 0.875rem;
+	}
+	.listing__layout {
+		display: grid;
+		grid-template-columns: 240px 1fr;
+		gap: 2.5rem;
+		align-items: start;
+	}
+	.listing__main .product-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 1.5rem;
+	}
+	.listing__empty {
+		grid-column: 1 / -1;
+		text-align: center;
+		padding: 3rem;
+		color: var(--color-muted);
+	}
+	@media (max-width: 1024px) {
+		.listing__layout {
+			grid-template-columns: 1fr;
+		}
+		.listing #filters {
+			display: none;
+			position: fixed;
+			inset: 0;
+			z-index: 200;
+			padding: 1.5rem;
+			background: var(--color-surface);
+			overflow-y: auto;
+		}
+		.listing #filters.filters--open {
+			display: block;
+		}
+		.listing__filter-btn {
+			display: block;
+		}
+		.listing__main .product-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+	@media (max-width: 480px) {
+		.listing__main .product-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

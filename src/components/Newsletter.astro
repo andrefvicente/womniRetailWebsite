@@ -1,0 +1,66 @@
+---
+import { useTranslations } from '../i18n';
+
+const t = useTranslations(Astro.currentLocale);
+---
+
+<section class="newsletter">
+	<div>
+		<h2>{t.newsletter.title}</h2>
+		<p>{t.newsletter.description}</p>
+	</div>
+	<form class="newsletter__form" action="#" method="post">
+		<label class="sr-only" for="newsletter-email">{t.newsletter.emailLabel}</label>
+		<input id="newsletter-email" type="email" name="email" placeholder={t.newsletter.placeholder} required />
+		<button type="submit" class="btn">{t.newsletter.subscribe}</button>
+	</form>
+</section>
+
+<style>
+	.newsletter {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1.5rem;
+		padding-bottom: 2rem;
+	}
+	.newsletter h2 {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 1.75rem;
+		font-weight: 500;
+		color: white;
+	}
+	.newsletter p {
+		margin: 0.35rem 0 0;
+		font-size: 0.875rem;
+	}
+	.newsletter__form {
+		display: flex;
+		flex: 1;
+		min-width: 16rem;
+		max-width: 28rem;
+		gap: 0;
+	}
+	.newsletter__form input {
+		flex: 1;
+		padding: 0.75rem 1rem;
+		border: 1px solid #444;
+		border-right: none;
+		background: #2a2a2a;
+		color: white;
+		outline: none;
+	}
+	.newsletter__form input::placeholder {
+		color: #888;
+	}
+	.newsletter__form .btn {
+		border-color: white;
+		background: white;
+		color: var(--color-ink);
+	}
+	.newsletter__form .btn:hover {
+		background: #eee;
+	}
+</style>

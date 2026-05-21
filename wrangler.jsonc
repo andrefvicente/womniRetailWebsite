@@ -1,0 +1,18 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "womni-rugs",
+	"main": "@astrojs/cloudflare/entrypoints/server",
+	"compatibility_date": "2025-04-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"assets": {
+		"binding": "ASSETS",
+		"directory": "./dist"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "womni-rugs-db",
+			"database_id": "00000000-0000-0000-0000-000000000001"
+		}
+	]
+}

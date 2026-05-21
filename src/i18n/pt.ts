@@ -1,0 +1,290 @@
+import type { UiDictionary } from './types';
+
+const pt: UiDictionary = {
+	brand: 'Womni Rugs',
+	meta: {
+		defaultDescription:
+			'Tapetes premium para cada divisão — envio grátis, devoluções fáceis e ajuda especializada na escolha do tamanho.',
+		titleSuffix: 'Womni Rugs',
+	},
+	aria: {
+		mainNav: 'Principal',
+		openMenu: 'Abrir menu',
+		search: 'Pesquisar',
+		searchRugs: 'Pesquisar tapetes',
+		account: 'Conta',
+		cart: 'Carrinho',
+		breadcrumb: 'Navegação estrutural',
+		stars: (rating) => `${rating} em 5 estrelas`,
+	},
+	trust: [
+		'Envio grátis acima de 99 €',
+		'Devoluções em 365 dias',
+		'Garantia de melhor preço',
+		'Classificação média da loja: 4,8',
+	],
+	nav: {
+		rugs: 'Tapetes',
+		byRoom: 'Por divisão',
+		runners: 'Passadeiras',
+		outdoor: 'Exterior',
+		sale: 'Promoções',
+	},
+	searchPlaceholder: 'Pesquisar tapetes, estilos, divisões…',
+	footer: {
+		tagline:
+			'Tapetes de inspiração escandinava para casas modernas. Materiais selecionados, preços transparentes, entrega à sua porta.',
+		shop: 'Loja',
+		customerCare: 'Apoio ao cliente',
+		about: 'Sobre nós',
+		rights: 'Todos os direitos reservados.',
+		links: {
+			allRugs: 'Todos os tapetes',
+			newArrivals: 'Novidades',
+			bestSellers: 'Mais vendidos',
+			sale: 'Promoções',
+			sizeGuide: 'Guia de tamanhos',
+			shipping: 'Envio e entrega',
+			returns: 'Devoluções',
+			contact: 'Contacte-nos',
+			ourStory: 'A nossa história',
+			sustainability: 'Sustentabilidade',
+			careGuide: 'Guia de cuidados',
+		},
+	},
+	newsletter: {
+		title: 'Junte-se ao clube de tapetes',
+		description: '10% de desconto na primeira encomenda, dicas de decoração e acesso antecipado a promoções.',
+		emailLabel: 'E-mail',
+		placeholder: 'O seu endereço de e-mail',
+		subscribe: 'Subscrever',
+	},
+	home: {
+		metaDescription:
+			'Compre tapetes premium para cada divisão. Envio grátis, devoluções em 365 dias e estilos inspirados no design escandinavo.',
+		eyebrow: 'Coleção primavera 2026',
+		title: 'Tapetes que transformam cada divisão',
+		lead:
+			'De flatweave em lã a polipropileno para exterior — selecionados para a vida moderna, com entrega grátis e devoluções sem complicações.',
+		shopAll: 'Ver todos os tapetes',
+		viewSale: 'Ver promoções',
+		heroImageAlt: 'Sala de estar com tapete neutro em lã',
+		shopByRoom: 'Comprar por divisão',
+		viewAll: 'Ver tudo →',
+		rugCount: (n) => `${n} tapetes`,
+		bestSellersSale: 'Mais vendidos e promoções',
+		seeMore: 'Ver mais →',
+		sizeGuideTitle: 'Não sabe qual o tamanho?',
+		sizeGuideLead:
+			'Use o nosso guia de tamanhos para encontrar a medida ideal para sofás, camas e mesas de jantar.',
+		sizeGuideCta: 'Guia de tamanhos',
+		sizeTips: [
+			{ room: 'Sala de estar', tip: '200×300 cm ou maior' },
+			{ room: 'Quarto', tip: '160×230 cm sob cama queen' },
+			{ room: 'Corredor', tip: 'Passadeiras 60×90 ou 80×150 cm' },
+			{ room: 'Jantar', tip: 'Tapete 60 cm além da mesa' },
+		],
+		newArrivals: 'Novidades',
+	},
+	catalog: {
+		metaDescription:
+			'Explore a nossa coleção completa de tapetes — filtre por divisão, material, estilo, cor e preço.',
+		title: 'Tapetes',
+		productCount: 'produtos',
+		filters: 'Filtros',
+		sortLabel: 'Ordenar por',
+		sort: {
+			popular: 'Mais populares',
+			'price-asc': 'Preço: mais baixo',
+			'price-desc': 'Preço: mais alto',
+			new: 'Mais recentes',
+			rating: 'Melhor classificação',
+		},
+		filterTitle: 'Filtrar',
+		clearAll: 'Limpar tudo',
+		room: 'Divisão',
+		material: 'Material',
+		style: 'Estilo',
+		color: 'Cor',
+		maxPrice: 'Preço máximo',
+		priceUpTo: (max) => `Até ${max} €`,
+		empty: 'Nenhum tapete corresponde aos filtros. Tente ajustar a seleção.',
+	},
+	product: {
+		save: (pct) => `Poupe ${pct}%`,
+		reviews: (rating, count) => `${rating} · ${count} avaliações`,
+		sizeLegend: 'Tamanho (cm)',
+		colorLegend: 'Cor',
+		quantity: 'Quantidade',
+		addToCart: 'Adicionar ao carrinho',
+		addedToCart: 'Adicionado ao carrinho ✓',
+		trust: ['Envio grátis acima de 99 €', 'Devoluções em 365 dias', 'Entrega em 3–7 dias úteis'],
+		description: 'Descrição',
+		care: 'Instruções de cuidado',
+		deliveryReturns: 'Entrega e devoluções',
+		deliveryText:
+			'Entrega standard grátis em encomendas acima de 99 €. Devolva no prazo de 365 dias, em estado original, para reembolso integral.',
+		related: 'Também pode gostar',
+		fromSize: 'Desde',
+	},
+	cart: {
+		metaDescription: 'Reveja a sua seleção de tapetes e avance para o pagamento.',
+		title: 'Carrinho de compras',
+		loading: 'A carregar o carrinho…',
+		summary: 'Resumo da encomenda',
+		subtotal: 'Subtotal',
+		shipping: 'Envio',
+		shippingCalc: 'Calculado no checkout',
+		shippingFree: 'Grátis',
+		total: 'Total',
+		freeShippingNote: 'Envio grátis em encomendas acima de 99 €',
+		checkout: 'Avançar para pagamento',
+		continueShopping: 'Continuar a comprar',
+		empty: 'O seu carrinho está vazio.',
+		shopRugs: 'Ver tapetes',
+		size: 'Tamanho',
+		color: 'Cor',
+		qty: 'Qtd.',
+		remove: 'Remover',
+	},
+	badges: {
+		sale: 'Promoção',
+		new: 'Novo',
+		bestseller: 'Mais vendido',
+	},
+	materials: {
+		wool: 'Lã',
+		'wool-blend': 'Mistura de lã',
+		jute: 'Juta',
+		cotton: 'Algodão',
+		polypropylene: 'Polipropileno',
+		viscose: 'Viscose',
+		'silk-blend': 'Mistura de seda',
+		polyester: 'Poliéster',
+	},
+	styles: {
+		scandinavian: 'Escandinavo',
+		bohemian: 'Boémio',
+		natural: 'Natural',
+		modern: 'Moderno',
+		traditional: 'Tradicional',
+		outdoor: 'Exterior',
+		kids: 'Infantil',
+		luxury: 'Luxo',
+		shag: 'Shag',
+		runner: 'Passadeira',
+		minimalist: 'Minimalista',
+		moroccan: 'Marroquino',
+	},
+	rooms: {
+		'living-room': 'Sala de estar',
+		bedroom: 'Quarto',
+		hallway: 'Corredor',
+		'dining-room': 'Sala de jantar',
+		patio: 'Terraço',
+		'kids-room': 'Quarto infantil',
+	},
+	colors: {
+		beige: 'Bege',
+		grey: 'Cinzento',
+		ivory: 'Marfim',
+		sand: 'Areia',
+		natural: 'Natural',
+		charcoal: 'Carvão',
+		blue: 'Azul',
+		rust: 'Ferrugem',
+		navy: 'Azul-marinho',
+		cream: 'Creme',
+		terracotta: 'Terracota',
+		multi: 'Multicolor',
+		white: 'Branco',
+		black: 'Preto',
+		stone: 'Pedra',
+		moss: 'Musgo',
+		brown: 'Castanho',
+		champagne: 'Champanhe',
+		sage: 'Sálvia',
+	},
+	categoryTiles: {
+		'living-room': { title: 'Sala de estar', count: 48 },
+		bedroom: { title: 'Quarto', count: 36 },
+		runners: { title: 'Passadeiras', count: 24 },
+		outdoor: { title: 'Exterior', count: 12 },
+	},
+	products: {
+		'stockholm-wool-flatweave': {
+			name: 'Stockholm Flatweave em Lã',
+			description:
+				'Flatweave tecido à mão em lã macia com padrão espinha subtil. Pile baixo, ideal para salas de jantar e zonas de maior circulação.',
+			care: 'Aspire regularmente. Limpeza profissional recomendada uma vez por ano.',
+		},
+		'oslo-berber-shag': {
+			name: 'Oslo Shag Berber',
+			description:
+				'Pile exuberante estilo Berber com textura orgânica. Aquece e dá profundidade a quartos e cantos de leitura.',
+			care: 'Abane ao ar livre ocasionalmente. Limpe manchas com detergente suave.',
+		},
+		'copenhagen-jute-natural': {
+			name: 'Copenhagen Juta Natural',
+			description:
+				'Juta de origem sustentável com borda trançada. Perfeita para entradas e composições em camadas na sala.',
+			care: 'Apenas limpeza a seco. Evite humidade prolongada.',
+		},
+		'helsinki-geometric-wool': {
+			name: 'Helsinki Geométrico em Lã',
+			description:
+				'Motivo geométrico inspirado em azulejos nórdicos. Pile denso em lã, confortável e com boa absorção acústica.',
+			care: 'Rode a cada 6 meses. Limpeza profissional para lã.',
+		},
+		'gothenburg-vintage-persian': {
+			name: 'Gothenburg Persa Vintage',
+			description:
+				'Tecido à máquina com acabamento vintage desgastado. Medalhão rico que dá carácter a salas de jantar formais.',
+			care: 'Aspire em potência baixa, sem escova rotativa.',
+		},
+		'malmo-outdoor-polypropylene': {
+			name: 'Malmö Exterior em Polipropileno',
+			description:
+				'Resistente a UV e fácil de lavar com mangueira. Tecelagem plana ideal para varandas, terraços e jardins de inverno.',
+			care: 'Enxague com água. Deixe secar completamente ao ar.',
+		},
+		'aarhus-kids-play-rug': {
+			name: 'Aarhus Tapete de Brincar Infantil',
+			description:
+				'Algodão macio com padrão de estrada. Base antiderrapante e lavável na máquina, para famílias ativas.',
+			care: 'Lavar à máquina a frio. Secar no estendal.',
+		},
+		'bergen-silk-viscose': {
+			name: 'Bergen Seda-Viscose',
+			description:
+				'Mistura seda-viscose com brilho e design abstrato em aguarela. Ponto focal elegante em suites principais.',
+			care: 'Apenas limpeza a seco profissional.',
+		},
+		'tromso-high-pile-shag': {
+			name: 'Tromsø Shag de Pile Alto',
+			description:
+				'Pile ultra-macio para conforto descalço. Fibras resistentes a nódoas, ideais para salas familiares.',
+			care: 'Aspire com bocal de estofos. Evite escova rotativa.',
+		},
+		'uppsala-runner-collection': {
+			name: 'Coleção Passadeira Uppsala',
+			description:
+				'Passadeiras estreitas para corredores e cozinhas. Design reversível com borda contrastante.',
+			care: 'Lavar à máquina em ciclo delicado.',
+		},
+		'lund-minimal-flatweave': {
+			name: 'Lund Flatweave Minimal',
+			description:
+				'Tom sólido com franja tonal. A base escandinava por excelência para qualquer interior.',
+			care: 'Aspire ambos os lados mensalmente.',
+		},
+		'narvik-moroccan-beni': {
+			name: 'Narvik Beni Marroquino',
+			description:
+				'Padrão de losangos inspirado em Beni Ourain autêntico. Pile espesso em lã para luxo sob os pés.',
+			care: 'Limpeza profissional. Abane e areje periodicamente.',
+		},
+	},
+};
+
+export default pt;

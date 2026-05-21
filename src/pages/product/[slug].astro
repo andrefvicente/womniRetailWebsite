@@ -1,0 +1,381 @@
+---
+export const prerender = false;
+
+import { Image } from 'astro:assets';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import ProductCard from '../../components/ProductCard.astro';
+import { sizeLabels } from '../../data/products';
+import { formatPrice, getLocalizedProduct, getLocalizedProducts, useTranslations } from '../../i18n';
+
+const t = useTranslations(Astro.currentLocale);
+const slug = Astro.params.slug;
+
+if (!slug) {
+	return Astro.redirect('/c/rugs');
+}
+
+const product = await getLocalizedProduct(slug, Astro.currentLocale);
+
+if (!product) {
+	return Astro.redirect('/c/rugs');
+}
+
+const allLocalized = await getLocalizedProducts(Astro.currentLocale);
+const related = allLocalized
+	.filter((p) => p.slug !== product.slug && (p.room === product.room || p.style === product.style))
+	.slice(0, 4);
+const discount =
+	product.originalPrice && product.originalPrice > product.price
+		? Math.round((1 - product.price / product.originalPrice) * 100)
+		: null;
+---
+
+<BaseLayout title={product.name} description={product.description}>
+	<div class="container pdp">
+		<Breadcrumbs
+			items={[
+				{ label: t.brand, href: '/' },
+				{ label: t.catalog.title, href: '/c/rugs' },
+				{ label: product.name },
+			]}
+		/>
+
+		<div class="pdp__layout">
+			<div class="pdp__gallery">
+				<div class="pdp__main-image">
+					<Image src={product.images[0]} alt={product.name} width={800} height={1000} id="main-image" />
+				</div>
+				{product.images.length > 1 && (
+					<div class="pdp__thumbs">
+						{product.images.map((img, i) => (
+							<button
+								type="button"
+								class:list={['pdp__thumb', { active: i === 0 }]}
+								data-thumb={img}
+								aria-label={`${t.catalog.title} ${i + 1}`}
+							>
+								<Image src={img} alt="" width={120} height={150} />
+							</button>
+						))}
+					</div>
+				)}
+			</div>
+
+			<div class="pdp__info">
+				{product.badge === 'sale' && discount && <span class="badge badge--sale">{t.product.save(discount)}</span>}
+				{product.badge === 'new' && <span class="badge badge--new">{t.badges.new}</span>}
+				<h1>{product.name}</h1>
+				<div class="pdp__rating">
+					<span class="stars">{'★'.repeat(Math.floor(product.rating))}</span>
+					<span>{t.product.reviews(product.rating, product.reviewCount)}</span>
+				</div>
+				<div class="pdp__price">
+					<span class="pdp__current">{formatPrice(product.price, Astro.currentLocale)}</span>
+					{product.originalPrice && (
+						<span class="pdp__was">{formatPrice(product.originalPrice, Astro.currentLocale)}</span>
+					)}
+				</div>
+				<p class="pdp__meta">
+					{t.materials[product.material]} · {t.styles[product.style]} · {t.rooms[product.room]}
+				</p>
+
+				<form
+					class="pdp__form"
+					data-add-to-cart
+					data-slug={product.slug}
+					data-name={product.name}
+					data-price={product.price}
+					data-image={product.image}
+					data-added-msg={t.product.addedToCart}
+				>
+					<fieldset class="pdp__fieldset">
+						<legend>{t.product.sizeLegend}</legend>
+						<div class="pdp__sizes">
+							{product.sizes.map((size, i) => (
+								<label class="pdp__size">
+									<input type="radio" name="size" value={size} checked={i === 0} required />
+									<span>{sizeLabels[size]}</span>
+								</label>
+							))}
+						</div>
+					</fieldset>
+
+					<fieldset class="pdp__fieldset">
+						<legend>{t.product.colorLegend}</legend>
+						<div class="pdp__colors">
+							{product.colors.map((color, i) => (
+								<label class="pdp__color">
+									<input type="radio" name="color" value={color} checked={i === 0} required />
+									<span>{t.colors[color]}</span>
+								</label>
+							))}
+						</div>
+					</fieldset>
+
+					<div class="pdp__qty">
+						<label for="qty">{t.product.quantity}</label>
+						<input type="number" id="qty" name="qty" min="1" max="10" value="1" />
+					</div>
+
+					<button type="submit" class="btn btn--accent pdp__add">{t.product.addToCart}</button>
+				</form>
+
+				<ul class="pdp__trust">
+					{t.product.trust.map((line) => (
+						<li>{line}</li>
+					))}
+				</ul>
+
+				<details class="pdp__accordion" open>
+					<summary>{t.product.description}</summary>
+					<p>{product.description}</p>
+				</details>
+				<details class="pdp__accordion">
+					<summary>{t.product.care}</summary>
+					<p>{product.care}</p>
+				</details>
+				<details class="pdp__accordion">
+					<summary>{t.product.deliveryReturns}</summary>
+					<p>{t.product.deliveryText}</p>
+				</details>
+			</div>
+		</div>
+
+		<section class="pdp__related">
+			<h2>{t.product.related}</h2>
+			<div class="product-grid">
+				{related.map((p) => (
+					<ProductCard product={p} />
+				))}
+			</div>
+		</section>
+	</div>
+</BaseLayout>
+
+<script>
+	document.querySelectorAll('[data-thumb]').forEach((btn) => {
+		btn.addEventListener('click', () => {
+			const src = btn.getAttribute('data-thumb');
+			const main = document.getElementById('main-image');
+			if (main && src) main.src = src;
+			document.querySelectorAll('.pdp__thumb').forEach((t) => t.classList.remove('active'));
+			btn.classList.add('active');
+		});
+	});
+
+	document.querySelector('[data-add-to-cart]')?.addEventListener('submit', (e) => {
+		e.preventDefault();
+		const form = e.target;
+		const slug = form.dataset.slug;
+		const name = form.dataset.name;
+		const price = Number(form.dataset.price);
+		const image = form.dataset.image;
+		const addedMsg = form.dataset.addedMsg;
+		const size = form.querySelector('[name="size"]:checked')?.value;
+		const color = form.querySelector('[name="color"]:checked')?.value;
+		const qty = Number(form.querySelector('[name="qty"]')?.value || 1);
+		const id = `${slug}-${size}-${color}`;
+
+		const cart = JSON.parse(localStorage.getItem('womni-cart') || '[]');
+		const existing = cart.find((item) => item.id === id);
+		if (existing) existing.qty += qty;
+		else cart.push({ id, slug, name, price, image, size, color, qty });
+		localStorage.setItem('womni-cart', JSON.stringify(cart));
+		window.dispatchEvent(new Event('cart-updated'));
+
+		const btn = form.querySelector('.pdp__add');
+		if (btn && addedMsg) {
+			const original = btn.textContent;
+			btn.textContent = addedMsg;
+			setTimeout(() => {
+				btn.textContent = original;
+			}, 2000);
+		}
+	});
+</script>
+
+<style>
+	.pdp {
+		padding: 1.5rem 0 4rem;
+	}
+	.pdp__layout {
+		display: grid;
+		grid-template-columns: 1.1fr 1fr;
+		gap: 3rem;
+		margin-top: 2rem;
+	}
+	.pdp__main-image {
+		background: #f0eeeb;
+		aspect-ratio: 4 / 5;
+	}
+	.pdp__main-image img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	.pdp__thumbs {
+		display: flex;
+		gap: 0.5rem;
+		margin-top: 0.75rem;
+	}
+	.pdp__thumb {
+		padding: 0;
+		border: 2px solid transparent;
+		background: none;
+		cursor: pointer;
+		width: 4.5rem;
+		overflow: hidden;
+	}
+	.pdp__thumb.active,
+	.pdp__thumb:hover {
+		border-color: var(--color-ink);
+	}
+	.pdp__thumb img {
+		aspect-ratio: 4 / 5;
+		object-fit: cover;
+	}
+	.pdp__info h1 {
+		margin: 0.75rem 0 0;
+		font-family: var(--font-display);
+		font-size: 2.25rem;
+		font-weight: 500;
+	}
+	.pdp__rating {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-top: 0.5rem;
+		font-size: 0.875rem;
+		color: var(--color-muted);
+	}
+	.pdp__price {
+		display: flex;
+		align-items: baseline;
+		gap: 0.75rem;
+		margin-top: 1rem;
+	}
+	.pdp__current {
+		font-size: 1.5rem;
+		font-weight: 600;
+	}
+	.pdp__was {
+		font-size: 1.125rem;
+		color: var(--color-muted);
+		text-decoration: line-through;
+	}
+	.pdp__meta {
+		margin: 0.5rem 0 1.5rem;
+		color: var(--color-muted);
+	}
+	.pdp__fieldset {
+		margin: 0 0 1.25rem;
+		padding: 0;
+		border: none;
+	}
+	.pdp__fieldset legend {
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		margin-bottom: 0.5rem;
+	}
+	.pdp__sizes,
+	.pdp__colors {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+	.pdp__size,
+	.pdp__color {
+		cursor: pointer;
+	}
+	.pdp__size input,
+	.pdp__color input {
+		position: absolute;
+		opacity: 0;
+	}
+	.pdp__size span,
+	.pdp__color span {
+		display: block;
+		padding: 0.5rem 0.85rem;
+		border: 1px solid var(--color-border);
+		font-size: 0.8125rem;
+		transition: border-color var(--transition), background var(--transition);
+	}
+	.pdp__size input:checked + span,
+	.pdp__color input:checked + span {
+		border-color: var(--color-ink);
+		background: var(--color-ink);
+		color: white;
+	}
+	.pdp__qty {
+		margin-bottom: 1.25rem;
+	}
+	.pdp__qty label {
+		display: block;
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		margin-bottom: 0.35rem;
+	}
+	.pdp__qty input {
+		width: 4rem;
+		padding: 0.5rem;
+		border: 1px solid var(--color-border);
+	}
+	.pdp__add {
+		width: 100%;
+		padding: 1rem;
+	}
+	.pdp__trust {
+		margin: 1.5rem 0 0;
+		padding: 1rem 0 0;
+		border-top: 1px solid var(--color-border);
+		list-style: none;
+		font-size: 0.875rem;
+		color: var(--color-muted);
+	}
+	.pdp__trust li + li {
+		margin-top: 0.35rem;
+	}
+	.pdp__accordion {
+		margin-top: 0.75rem;
+		border-top: 1px solid var(--color-border);
+		padding-top: 0.75rem;
+	}
+	.pdp__accordion summary {
+		font-weight: 600;
+		cursor: pointer;
+	}
+	.pdp__accordion p {
+		margin: 0.75rem 0 0;
+		color: var(--color-muted);
+		line-height: 1.6;
+	}
+	.pdp__related {
+		margin-top: 4rem;
+		padding-top: 3rem;
+		border-top: 1px solid var(--color-border);
+	}
+	.pdp__related h2 {
+		margin: 0 0 2rem;
+		font-family: var(--font-display);
+		font-size: 2rem;
+		font-weight: 500;
+	}
+	.pdp__related .product-grid {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 1.5rem;
+	}
+	@media (max-width: 900px) {
+		.pdp__layout {
+			grid-template-columns: 1fr;
+		}
+		.pdp__related .product-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+</style>

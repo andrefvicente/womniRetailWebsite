@@ -1,0 +1,263 @@
+---
+export const prerender = false;
+
+import { Image } from 'astro:assets';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { rugImages } from '../data/images';
+import ProductCard from '../components/ProductCard.astro';
+import { categoryTiles } from '../data/navigation';
+import { getLocalizedProducts, useTranslations } from '../i18n';
+
+const t = useTranslations(Astro.currentLocale);
+const localized = await getLocalizedProducts(Astro.currentLocale);
+const featured = localized.filter((p) => p.badge === 'bestseller' || p.badge === 'sale').slice(0, 4);
+const newArrivals = localized.filter((p) => p.badge === 'new').concat(localized).slice(0, 4);
+---
+
+<BaseLayout title={t.brand} description={t.home.metaDescription}>
+	<section class="hero">
+		<div class="container hero__inner">
+			<div class="hero__copy">
+				<p class="hero__eyebrow">{t.home.eyebrow}</p>
+				<h1>{t.home.title}</h1>
+				<p class="hero__lead">{t.home.lead}</p>
+				<div class="hero__cta">
+					<a href="/c/rugs" class="btn btn--accent">{t.home.shopAll}</a>
+					<a href="/c/rugs?sale=true" class="btn btn--outline">{t.home.viewSale}</a>
+				</div>
+			</div>
+			<div class="hero__visual">
+				<Image src={rugImages.hero} alt={t.home.heroImageAlt} width={700} height={875} loading="eager" />
+			</div>
+		</div>
+	</section>
+
+	<section class="categories">
+		<div class="container">
+			<header class="section-header">
+				<h2>{t.home.shopByRoom}</h2>
+				<a href="/c/rugs">{t.home.viewAll}</a>
+			</header>
+			<div class="categories__grid">
+				{categoryTiles.map((cat) => {
+					const tile = t.categoryTiles[cat.id];
+					return (
+						<a href={cat.href} class="category-tile">
+							<Image src={cat.image} alt="" width={400} height={300} loading="lazy" />
+							<span class="category-tile__overlay">
+								<span class="category-tile__title">{tile?.title ?? cat.id}</span>
+								{tile?.count != null && <span class="category-tile__count">{t.home.rugCount(tile.count)}</span>}
+							</span>
+						</a>
+					);
+				})}
+			</div>
+		</div>
+	</section>
+
+	<section class="featured">
+		<div class="container">
+			<header class="section-header">
+				<h2>{t.home.bestSellersSale}</h2>
+				<a href="/c/rugs?badge=bestseller">{t.home.seeMore}</a>
+			</header>
+			<div class="product-grid">
+				{featured.map((product) => (
+					<ProductCard product={product} />
+				))}
+			</div>
+		</div>
+	</section>
+
+	<section class="promo">
+		<div class="container promo__inner">
+			<div>
+				<h2>{t.home.sizeGuideTitle}</h2>
+				<p>{t.home.sizeGuideLead}</p>
+				<a href="#size-guide" class="btn btn--outline">{t.home.sizeGuideCta}</a>
+			</div>
+			<ul class="promo__sizes" id="size-guide">
+				{t.home.sizeTips.map((tip) => (
+					<li>
+						<strong>{tip.room}</strong> — {tip.tip}
+					</li>
+				))}
+			</ul>
+		</div>
+	</section>
+
+	<section class="featured">
+		<div class="container">
+			<header class="section-header">
+				<h2>{t.home.newArrivals}</h2>
+				<a href="/c/rugs?sort=new">{t.home.seeMore}</a>
+			</header>
+			<div class="product-grid">
+				{newArrivals.map((product) => (
+					<ProductCard product={product} />
+				))}
+			</div>
+		</div>
+	</section>
+</BaseLayout>
+
+<style>
+	.hero {
+		background: var(--color-surface);
+		border-bottom: 1px solid var(--color-border);
+	}
+	.hero__inner {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 3rem;
+		align-items: center;
+		padding: 3rem 0 4rem;
+	}
+	.hero__eyebrow {
+		margin: 0;
+		font-size: 0.75rem;
+		font-weight: 600;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--color-accent);
+	}
+	.hero h1 {
+		margin: 0.75rem 0 0;
+		font-family: var(--font-display);
+		font-size: clamp(2.5rem, 5vw, 3.75rem);
+		font-weight: 500;
+		line-height: 1.1;
+	}
+	.hero__lead {
+		margin: 1.25rem 0 0;
+		font-size: 1.0625rem;
+		color: var(--color-muted);
+		max-width: 28rem;
+	}
+	.hero__cta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem;
+		margin-top: 2rem;
+	}
+	.hero__visual img {
+		width: 100%;
+		aspect-ratio: 4 / 5;
+		object-fit: cover;
+	}
+	.section-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		margin-bottom: 2rem;
+	}
+	.section-header h2 {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 2rem;
+		font-weight: 500;
+	}
+	.section-header a {
+		font-size: 0.875rem;
+		color: var(--color-muted);
+		text-decoration: underline;
+	}
+	.categories,
+	.featured {
+		padding: 4rem 0;
+	}
+	.categories__grid {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 1rem;
+	}
+	.category-tile {
+		position: relative;
+		aspect-ratio: 4 / 3;
+		overflow: hidden;
+	}
+	.category-tile img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		transition: transform 0.4s ease;
+	}
+	.category-tile:hover img {
+		transform: scale(1.05);
+	}
+	.category-tile__overlay {
+		position: absolute;
+		inset: 0;
+		display: flex;
+		flex-direction: column;
+		justify-content: flex-end;
+		padding: 1.25rem;
+		background: linear-gradient(transparent 40%, rgb(0 0 0 / 55%));
+		color: white;
+	}
+	.category-tile__title {
+		font-family: var(--font-display);
+		font-size: 1.5rem;
+	}
+	.category-tile__count {
+		font-size: 0.8125rem;
+		opacity: 0.9;
+	}
+	.product-grid {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 1.5rem;
+	}
+	.promo {
+		padding: 4rem 0;
+		background: var(--color-surface);
+		border-block: 1px solid var(--color-border);
+	}
+	.promo__inner {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 3rem;
+		align-items: start;
+	}
+	.promo h2 {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 2rem;
+		font-weight: 500;
+	}
+	.promo p {
+		margin: 1rem 0 1.5rem;
+		color: var(--color-muted);
+		max-width: 24rem;
+	}
+	.promo__sizes {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.promo__sizes li {
+		padding: 0.75rem 0;
+		border-bottom: 1px solid var(--color-border);
+		font-size: 0.9375rem;
+	}
+	.promo__sizes strong {
+		display: inline-block;
+		min-width: 7rem;
+	}
+	@media (max-width: 1024px) {
+		.hero__inner,
+		.promo__inner {
+			grid-template-columns: 1fr;
+		}
+		.categories__grid,
+		.product-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+	@media (max-width: 480px) {
+		.categories__grid,
+		.product-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

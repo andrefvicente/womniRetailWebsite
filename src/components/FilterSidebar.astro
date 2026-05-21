@@ -1,0 +1,165 @@
+---
+import { filterKeys } from '../data/products';
+import { useTranslations } from '../i18n';
+
+const t = useTranslations(Astro.currentLocale);
+---
+
+<aside class="filters" id="filters">
+	<div class="filters__header">
+		<h2>{t.catalog.filterTitle}</h2>
+		<button type="button" class="filters__clear" data-clear-filters>{t.catalog.clearAll}</button>
+	</div>
+
+	<details class="filters__group" open>
+		<summary>{t.catalog.room}</summary>
+		<ul>
+			{filterKeys.rooms.map((key) => (
+				<li>
+					<label>
+						<input type="checkbox" name="room" value={key} data-filter="room" />
+						{t.rooms[key]}
+					</label>
+				</li>
+			))}
+		</ul>
+	</details>
+
+	<details class="filters__group" open>
+		<summary>{t.catalog.material}</summary>
+		<ul>
+			{filterKeys.materials.map((key) => (
+				<li>
+					<label>
+						<input type="checkbox" name="material" value={key} data-filter="material" />
+						{t.materials[key]}
+					</label>
+				</li>
+			))}
+		</ul>
+	</details>
+
+	<details class="filters__group">
+		<summary>{t.catalog.style}</summary>
+		<ul>
+			{filterKeys.styles.map((key) => (
+				<li>
+					<label>
+						<input type="checkbox" name="style" value={key} data-filter="style" />
+						{t.styles[key]}
+					</label>
+				</li>
+			))}
+		</ul>
+	</details>
+
+	<details class="filters__group">
+		<summary>{t.catalog.color}</summary>
+		<ul class="filters__colors">
+			{filterKeys.colors.map((key) => (
+				<li>
+					<label>
+						<input type="checkbox" name="color" value={key} data-filter="color" />
+						{t.colors[key]}
+					</label>
+				</li>
+			))}
+		</ul>
+	</details>
+
+	<div class="filters__group">
+		<label class="filters__price-label" for="price-max">{t.catalog.maxPrice}</label>
+		<input type="range" id="price-max" name="priceMax" min="50" max="800" value="800" step="10" data-filter="price" />
+		<span class="filters__price-value" data-price-display>{t.catalog.priceUpTo(800)}</span>
+	</div>
+</aside>
+
+<style>
+	.filters {
+		font-size: 0.875rem;
+	}
+	.filters__header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1.25rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid var(--color-border);
+	}
+	.filters__header h2 {
+		margin: 0;
+		font-family: var(--font-sans);
+		font-size: 0.875rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+	.filters__clear {
+		border: none;
+		background: none;
+		font-size: 0.8125rem;
+		color: var(--color-muted);
+		cursor: pointer;
+		text-decoration: underline;
+	}
+	.filters__group {
+		margin-bottom: 1rem;
+		border-bottom: 1px solid var(--color-border);
+		padding-bottom: 1rem;
+	}
+	.filters__group summary {
+		font-weight: 600;
+		cursor: pointer;
+		list-style: none;
+		display: flex;
+		justify-content: space-between;
+	}
+	.filters__group summary::-webkit-details-marker {
+		display: none;
+	}
+	.filters__group summary::after {
+		content: '+';
+		font-weight: 400;
+	}
+	.filters__group[open] summary::after {
+		content: '−';
+	}
+	.filters__group ul {
+		margin: 0.75rem 0 0;
+		padding: 0;
+		list-style: none;
+	}
+	.filters__group li + li {
+		margin-top: 0.4rem;
+	}
+	.filters__group label {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		cursor: pointer;
+		color: var(--color-muted);
+	}
+	.filters__group label:has(:checked) {
+		color: var(--color-ink);
+		font-weight: 500;
+	}
+	.filters__colors {
+		max-height: 10rem;
+		overflow-y: auto;
+	}
+	.filters__price-label {
+		display: block;
+		font-weight: 600;
+		margin-bottom: 0.5rem;
+	}
+	.filters__group input[type='range'] {
+		width: 100%;
+		accent-color: var(--color-accent);
+	}
+	.filters__price-value {
+		display: block;
+		margin-top: 0.35rem;
+		font-size: 0.8125rem;
+		color: var(--color-muted);
+	}
+</style>

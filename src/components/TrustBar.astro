@@ -1,0 +1,46 @@
+---
+import { useTranslations } from '../i18n';
+
+const t = useTranslations(Astro.currentLocale);
+const icons = ['🚚', '↩', '✓', '★'];
+---
+
+<div class="trust-bar">
+	<div class="container trust-bar__inner">
+		{t.trust.map((text, i) => (
+			<span class="trust-bar__item">
+				<span aria-hidden="true">{icons[i]}</span>
+				{text}
+			</span>
+		))}
+	</div>
+</div>
+
+<style>
+	.trust-bar {
+		background: var(--color-accent);
+		color: white;
+		font-size: 0.75rem;
+		letter-spacing: 0.02em;
+	}
+	.trust-bar__inner {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 1.5rem 2.5rem;
+		padding: 0.5rem 0;
+	}
+	.trust-bar__item {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+	}
+	@media (max-width: 640px) {
+		.trust-bar__inner {
+			gap: 0.75rem 1.25rem;
+		}
+		.trust-bar__item:nth-child(n + 3) {
+			display: none;
+		}
+	}
+</style>
