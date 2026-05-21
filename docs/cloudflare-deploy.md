@@ -8,21 +8,25 @@
 
 ## Configuração inicial (uma vez)
 
-### 1. Criar base D1
+### 1. Criar base D1 (se ainda não existir)
 
 ```bash
 npm run db:create
 ```
 
-Saída inclui `database_id`. Atualizar em `wrangler.jsonc`:
+A saída inclui o `database_id` UUID. **Obrigatório** em `wrangler.jsonc` — o placeholder `00000000-0000-0000-0000-000000000001` faz o deploy falhar com erro `10181`.
 
 ```jsonc
 "d1_databases": [{
   "binding": "DB",
   "database_name": "womni-rugs-db",
-  "database_id": "<ID_REAL_DA_CLOUDFLARE>"
+  "database_id": "cb26b01c-bd39-4581-91d7-5d7957b87c0e"
 }]
 ```
+
+Listar bases existentes: `npx wrangler d1 list`
+
+> **Nota:** Não reutilizar a base D1 `womni` se tiver outro schema (ex. tabelas `employee`). Usar `womni-rugs-db` dedicada a esta loja.
 
 ### 2. Migrações remotas
 
