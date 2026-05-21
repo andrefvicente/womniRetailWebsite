@@ -67,7 +67,7 @@ dist/
 
 ## Bindings automáticos (adapter)
 
-O `@astrojs/cloudflare` pode provisionar **SESSION** KV em deploy. Config atual em `astro.config.mjs` não usa sessions na app — binding pode aparecer nos logs; ignorar se não implementado.
+Sessions Astro estão **desativadas** (`session.driver: null`). O binding KV `SESSION` no `wrangler.jsonc` só referencia o namespace já criado pelo Pages, para evitar erro `10014`.
 
 ## Variáveis e secrets
 
@@ -108,6 +108,8 @@ Para R2 + CDN próprio: configurar binding R2 e atualizar `src/data/images.ts` �
 
 | Problema | Solução |
 |----------|---------|
+| **KV `10014` namespace already exists** | Adapter tentava criar KV `SESSION`. Usar `session.driver: null` em `astro.config.mjs`. Se o namespace já existir no Pages, definir `id` em `kv_namespaces` no `wrangler.jsonc`. |
+| **D1 `10181` database not found** | `database_id` em `wrangler.jsonc` deve ser o UUID real (`npx wrangler d1 list`), não o placeholder. |
 | 500 em páginas SSR | Verificar binding `DB` e migrações remotas |
 | API retorna `error` D1 | `db:migrate:remote`; confirmar `database_id` |
 | Build falha import D1 | Tipos em `env.d.ts`; `getDatabase` path |

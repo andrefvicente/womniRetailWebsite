@@ -4,6 +4,12 @@ import cloudflare from '@astrojs/cloudflare';
 
 // https://astro.build/config
 export default defineConfig({
+	// Loja não usa Astro Sessions — evita auto-criação de KV SESSION no deploy (erro 10014)
+	session: {
+		driver: {
+			entrypoint: 'unstorage/drivers/null',
+		},
+	},
 	adapter: cloudflare({
 		platformProxy: {
 			enabled: true,

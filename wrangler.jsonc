@@ -14,5 +14,12 @@
 			"database_name": "womni-rugs-db",
 			"database_id": "cb26b01c-bd39-4581-91d7-5d7957b87c0e"
 		}
+	],
+	// Namespace já criado pelo Cloudflare Pages (evita erro 10014 se o adapter pedir SESSION)
+	"kv_namespaces": [
+		{
+			"binding": "SESSION",
+			"id": "b77f03063d9d410db16f96d4ac9916df"
+		}
 	]
 }
