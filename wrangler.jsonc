@@ -1,6 +1,6 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "womni-rugs",
+	"name": "womni-retail-website-ca",
 	"main": "@astrojs/cloudflare/entrypoints/server",
 	"compatibility_date": "2025-04-01",
 	"compatibility_flags": ["nodejs_compat"],
