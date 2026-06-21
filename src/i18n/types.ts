@@ -1,4 +1,4 @@
-import type { MaterialKey, RoomKey, StyleKey, ColorKey } from '../data/types';
+import type { ColorKey, MaterialKey, RoomKey, StyleKey } from '../data/catalog-i18n';
 
 export type BadgeKey = 'sale' | 'new' | 'bestseller';
 
@@ -106,6 +106,7 @@ export interface UiDictionary {
 		addedToCart: string;
 		trust: string[];
 		description: string;
+		features: string;
 		care: string;
 		deliveryReturns: string;
 		deliveryText: string;
@@ -131,6 +132,11 @@ export interface UiDictionary {
 		color: string;
 		qty: string;
 		remove: string;
+		product: string;
+		price: string;
+		quantity: string;
+		lineTotal: string;
+		image: string;
 	};
 	badges: Record<BadgeKey, string>;
 	materials: Record<MaterialKey, string>;

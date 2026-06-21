@@ -1,17 +1,29 @@
 import type { APIRoute } from 'astro';
 import { defaultLocale, isLocale } from '../../../i18n/config';
-import { localizeProduct } from '../../../i18n';
 import {
 	getDatabase,
+	listLocalizedProducts,
 	listProductRows,
 	parseProductFiltersFromUrl,
 	parseProductSort,
 } from '../../../lib/db/products';
-import { rowToProductBase } from '../../../lib/db/types';
+import { handleCatalogExport, handleCatalogImport } from '../../../lib/sync/handlers';
+import { verifySyncAuth } from '../../../lib/sync/auth';
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ url }) => {
+/** Womni channel sync: GET ?womniSync=catalog (list) or ?womniSync=catalog&catalog=id (export). */
+export const GET: APIRoute = async ({ request, url }) => {
+	if (url.searchParams.get('womniSync') === 'catalog') {
+		if (!verifySyncAuth(request)) {
+			return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+				status: 401,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		}
+		return handleCatalogExport(request, url);
+	}
+
 	try {
 		const db = getDatabase();
 		const localeParam = url.searchParams.get('locale') ?? defaultLocale;
@@ -20,13 +32,11 @@ export const GET: APIRoute = async ({ url }) => {
 		const sort = parseProductSort(url);
 		const maxPrice = Number(url.searchParams.get('maxPrice') ?? 0);
 
-		let rows = await listProductRows(db, locale, filters, sort);
+		let products = await listLocalizedProducts(db, locale, filters, sort);
 
 		if (maxPrice > 0) {
-			rows = rows.filter((row) => row.price <= maxPrice);
+			products = products.filter((product) => product.price <= maxPrice);
 		}
-
-		const products = rows.map((row) => localizeProduct(rowToProductBase(row), locale));
 
 		return new Response(
 			JSON.stringify({
@@ -48,4 +58,15 @@ export const GET: APIRoute = async ({ url }) => {
 			headers: { 'Content-Type': 'application/json; charset=utf-8' },
 		});
 	}
+};
+
+/** Womni channel sync: POST catalog import (Bearer token required). */
+export const POST: APIRoute = async ({ request }) => {
+	if (!verifySyncAuth(request)) {
+		return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+			status: 401,
+			headers: { 'Content-Type': 'application/json' },
+		});
+	}
+	return handleCatalogImport(request);
 };

@@ -5,7 +5,7 @@ import { defaultLocale, isLocale } from './config';
 import type { Product, ProductBase } from '../data/types';
 import { products as staticProductCatalog } from '../data/products';
 import { getDatabase, hasDatabase } from '../lib/db/bindings';
-import { getProductBase, listProductsBase } from '../lib/db/products';
+import { getLocalizedProductFromDb, listLocalizedProducts } from '../lib/db/products';
 
 const dictionaries: Record<Locale, UiDictionary> = { pt };
 
@@ -27,8 +27,7 @@ export function localizeProduct(base: ProductBase, locale?: string): Product {
 export async function getLocalizedProducts(locale?: string): Promise<Product[]> {
 	if (hasDatabase()) {
 		const db = getDatabase();
-		const bases = await listProductsBase(db, locale ?? defaultLocale);
-		return bases.map((p) => localizeProduct(p, locale));
+		return listLocalizedProducts(db, locale ?? defaultLocale);
 	}
 	return staticProductCatalog.map((p) => localizeProduct(p, locale));
 }
@@ -36,8 +35,8 @@ export async function getLocalizedProducts(locale?: string): Promise<Product[]> 
 export async function getLocalizedProduct(slug: string, locale?: string): Promise<Product | undefined> {
 	if (hasDatabase()) {
 		const db = getDatabase();
-		const base = await getProductBase(db, slug, locale ?? defaultLocale);
-		return base ? localizeProduct(base, locale) : undefined;
+		const product = await getLocalizedProductFromDb(db, slug, locale ?? defaultLocale);
+		return product ?? undefined;
 	}
 	const base = staticProductCatalog.find((p) => p.slug === slug);
 	return base ? localizeProduct(base, locale) : undefined;

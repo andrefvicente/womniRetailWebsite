@@ -1,8 +1,11 @@
 ---
-import { mainNav } from '../data/navigation';
+import { brandLogo } from '../data/images';
+import NavMenu from './NavMenu.astro';
+import { loadSiteNavigation } from '../lib/site/navigation';
 import { useTranslations } from '../i18n';
 
 const t = useTranslations(Astro.currentLocale);
+const { mainNav, defaultCatalogHref } = await loadSiteNavigation();
 ---
 
 <header class="header">
@@ -14,21 +17,14 @@ const t = useTranslations(Astro.currentLocale);
 		</button>
 
 		<a href="/" class="header__logo">
-			<span class="header__logo-mark">W</span>
-			<span class="header__logo-text">{t.brand}</span>
+			<img src={brandLogo} alt={t.brand} width="180" height="40" decoding="async" />
 		</a>
 
 		<nav class="header__nav" aria-label={t.aria.mainNav}>
-			<ul>
-				{mainNav.map((item) => (
-					<li>
-						<a href={item.href}>{t.nav[item.key]}</a>
-					</li>
-				))}
-			</ul>
+			<NavMenu items={mainNav} class="header__nav-list" />
 		</nav>
 
-		<form class="header__search" action="/c/rugs" method="get" role="search">
+		<form class="header__search" action={defaultCatalogHref} method="get" role="search">
 			<label class="sr-only" for="header-search">{t.aria.searchRugs}</label>
 			<input id="header-search" type="search" name="q" placeholder={t.searchPlaceholder} />
 			<button type="submit" aria-label={t.aria.search}>
@@ -59,13 +55,7 @@ const t = useTranslations(Astro.currentLocale);
 	</div>
 
 	<nav class="header__mobile" data-mobile-nav hidden>
-		<ul>
-			{mainNav.map((item) => (
-				<li>
-					<a href={item.href}>{t.nav[item.key]}</a>
-				</li>
-			))}
-		</ul>
+		<NavMenu items={mainNav} class="header__mobile-list" subnavClass="header__mobile-subnav" />
 	</nav>
 </header>
 
@@ -94,39 +84,61 @@ const t = useTranslations(Astro.currentLocale);
 	.header__logo {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
-		font-family: var(--font-display);
-		font-size: 1.35rem;
-		font-weight: 500;
-		white-space: nowrap;
 	}
-	.header__logo-mark {
-		display: grid;
-		place-items: center;
-		width: 2rem;
-		height: 2rem;
-		background: var(--color-accent);
-		color: white;
-		font-family: var(--font-sans);
-		font-size: 1rem;
-		font-weight: 600;
+	.header__logo img {
+		display: block;
+		height: 2.25rem;
+		width: auto;
 	}
-	.header__nav ul {
+	:global(.header__nav-list) {
 		display: flex;
 		gap: 1.75rem;
 		margin: 0;
 		padding: 0;
 		list-style: none;
 	}
-	.header__nav a {
+	:global(.header__nav-list > li) {
+		position: relative;
+	}
+	:global(.header__nav-list a) {
 		font-size: 0.8125rem;
 		font-weight: 500;
 		letter-spacing: 0.03em;
 		text-transform: uppercase;
 		transition: color var(--transition);
 	}
-	.header__nav a:hover {
+	:global(.header__nav-list a:hover) {
 		color: var(--color-accent);
+	}
+	:global(.header__subnav) {
+		display: none;
+		position: absolute;
+		top: 100%;
+		left: 0;
+		min-width: 12rem;
+		margin: 0;
+		padding: 0.75rem 0;
+		list-style: none;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+		z-index: 10;
+	}
+	:global(.header__subnav .header__subnav) {
+		top: 0;
+		left: 100%;
+	}
+	:global(.header__nav-list li.has-children:hover > .header__subnav),
+	:global(.header__subnav li.has-children:hover > .header__subnav) {
+		display: block;
+	}
+	:global(.header__subnav a) {
+		display: block;
+		padding: 0.45rem 1rem;
+		text-transform: none;
+		letter-spacing: 0;
+		font-size: 0.875rem;
+		white-space: nowrap;
 	}
 	.header__search {
 		display: flex;
@@ -187,18 +199,29 @@ const t = useTranslations(Astro.currentLocale);
 		border-top: 1px solid var(--color-border);
 		background: var(--color-surface);
 	}
-	.header__mobile ul {
+	:global(.header__mobile-list),
+	:global(.header__mobile-subnav) {
 		margin: 0;
-		padding: 1rem;
+		padding: 0;
 		list-style: none;
 	}
-	.header__mobile a {
+	:global(.header__mobile-list > li > a) {
 		display: block;
-		padding: 0.75rem 0;
+		padding: 0.75rem 1rem;
 		font-weight: 500;
 		text-transform: uppercase;
 		font-size: 0.875rem;
 		letter-spacing: 0.04em;
+	}
+	:global(.header__mobile-subnav a) {
+		display: block;
+		padding: 0.5rem 1rem 0.5rem 1.75rem;
+		font-size: 0.875rem;
+		text-transform: none;
+		letter-spacing: 0;
+	}
+	:global(.header__mobile-subnav .header__mobile-subnav a) {
+		padding-left: 2.5rem;
 	}
 	@media (max-width: 1024px) {
 		.header__inner {

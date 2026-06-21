@@ -5,30 +5,58 @@ import { Image } from 'astro:assets';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import ProductCard from '../../components/ProductCard.astro';
-import { sizeLabels } from '../../data/products';
+import { categoryHref as buildCategoryHref, getCategoryBySlug } from '../../lib/db/categories';
+import { buildOptionGroupsFromCombinations } from '../../lib/db/combinations';
+import { getDatabase, hasDatabase } from '../../lib/db/bindings';
+import { loadSiteNavigation } from '../../lib/site/navigation';
 import { formatPrice, getLocalizedProduct, getLocalizedProducts, useTranslations } from '../../i18n';
 
 const t = useTranslations(Astro.currentLocale);
+const { defaultCatalogHref } = await loadSiteNavigation();
 const slug = Astro.params.slug;
 
 if (!slug) {
-	return Astro.redirect('/c/rugs');
+	return Astro.redirect(defaultCatalogHref);
 }
 
 const product = await getLocalizedProduct(slug, Astro.currentLocale);
 
 if (!product) {
-	return Astro.redirect('/c/rugs');
+	return Astro.redirect(defaultCatalogHref);
+}
+
+let categoryLabel = t.catalog.title;
+let categoryHref = defaultCatalogHref;
+
+if (product.categorySlug && hasDatabase()) {
+	const db = getDatabase();
+	const category = await getCategoryBySlug(db, product.categorySlug);
+	if (category) {
+		categoryLabel = category.name;
+		categoryHref = buildCategoryHref(category.slug);
+	}
 }
 
 const allLocalized = await getLocalizedProducts(Astro.currentLocale);
 const related = allLocalized
-	.filter((p) => p.slug !== product.slug && (p.room === product.room || p.style === product.style))
+	.filter(
+		(p) =>
+			p.slug !== product.slug &&
+			(product.categorySlug ? p.categorySlug === product.categorySlug : true),
+	)
 	.slice(0, 4);
 const discount =
 	product.originalPrice && product.originalPrice > product.price
 		? Math.round((1 - product.price / product.originalPrice) * 100)
 		: null;
+const productCombinations = product.combinations ?? [];
+const optionGroups =
+	product.optionGroups?.length
+		? product.optionGroups
+		: productCombinations.length
+			? buildOptionGroupsFromCombinations(productCombinations)
+			: [];
+const productFeatures = product.features ?? [];
 ---
 
 <BaseLayout title={product.name} description={product.description}>
@@ -36,7 +64,7 @@ const discount =
 		<Breadcrumbs
 			items={[
 				{ label: t.brand, href: '/' },
-				{ label: t.catalog.title, href: '/c/rugs' },
+				{ label: categoryLabel, href: categoryHref },
 				{ label: product.name },
 			]}
 		/>
@@ -66,19 +94,12 @@ const discount =
 				{product.badge === 'sale' && discount && <span class="badge badge--sale">{t.product.save(discount)}</span>}
 				{product.badge === 'new' && <span class="badge badge--new">{t.badges.new}</span>}
 				<h1>{product.name}</h1>
-				<div class="pdp__rating">
-					<span class="stars">{'★'.repeat(Math.floor(product.rating))}</span>
-					<span>{t.product.reviews(product.rating, product.reviewCount)}</span>
-				</div>
 				<div class="pdp__price">
-					<span class="pdp__current">{formatPrice(product.price, Astro.currentLocale)}</span>
+					<span class="pdp__current" data-price-current>{formatPrice(product.price, Astro.currentLocale)}</span>
 					{product.originalPrice && (
-						<span class="pdp__was">{formatPrice(product.originalPrice, Astro.currentLocale)}</span>
+						<span class="pdp__was" data-price-was>{formatPrice(product.originalPrice, Astro.currentLocale)}</span>
 					)}
 				</div>
-				<p class="pdp__meta">
-					{t.materials[product.material]} · {t.styles[product.style]} · {t.rooms[product.room]}
-				</p>
 
 				<form
 					class="pdp__form"
@@ -88,30 +109,37 @@ const discount =
 					data-price={product.price}
 					data-image={product.image}
 					data-added-msg={t.product.addedToCart}
+					data-has-combinations={productCombinations.length > 0 ? 'true' : 'false'}
 				>
-					<fieldset class="pdp__fieldset">
-						<legend>{t.product.sizeLegend}</legend>
-						<div class="pdp__sizes">
-							{product.sizes.map((size, i) => (
-								<label class="pdp__size">
-									<input type="radio" name="size" value={size} checked={i === 0} required />
-									<span>{sizeLabels[size]}</span>
-								</label>
-							))}
-						</div>
-					</fieldset>
-
-					<fieldset class="pdp__fieldset">
-						<legend>{t.product.colorLegend}</legend>
-						<div class="pdp__colors">
-							{product.colors.map((color, i) => (
-								<label class="pdp__color">
-									<input type="radio" name="color" value={color} checked={i === 0} required />
-									<span>{t.colors[color]}</span>
-								</label>
-							))}
-						</div>
-					</fieldset>
+					{optionGroups.map((group, groupIndex) => (
+						<fieldset class="pdp__fieldset" data-option-fieldset={group.key}>
+							<legend>{group.name}</legend>
+							<div class="pdp__options" class:list={[{ 'pdp__options--color': group.groupType === 'color' }]}>
+								{group.values.map((value, valueIndex) => (
+									<label class="pdp__option" class:list={[{ 'pdp__option--color': group.groupType === 'color' }]}>
+										<input
+											type="radio"
+											name={`opt-${group.key}`}
+											value={value.id}
+											data-option-group={group.key}
+											data-option-label={value.name}
+											checked={valueIndex === 0}
+											required
+										/>
+										{group.groupType === 'color' && value.color ? (
+											<span
+												class="pdp__color-swatch"
+												style={`background:${value.color}`}
+												title={value.name}
+											/>
+										) : (
+											<span>{value.name}</span>
+										)}
+									</label>
+								))}
+							</div>
+						</fieldset>
+					))}
 
 					<div class="pdp__qty">
 						<label for="qty">{t.product.quantity}</label>
@@ -131,6 +159,19 @@ const discount =
 					<summary>{t.product.description}</summary>
 					<p>{product.description}</p>
 				</details>
+				{productFeatures.length > 0 && (
+					<details class="pdp__accordion" open>
+						<summary>{t.product.features}</summary>
+						<dl class="pdp__features">
+							{productFeatures.map((feature) => (
+								<div class="pdp__feature">
+									<dt>{feature.name}</dt>
+									<dd>{feature.value}</dd>
+								</div>
+							))}
+						</dl>
+					</details>
+				)}
 				<details class="pdp__accordion">
 					<summary>{t.product.care}</summary>
 					<p>{product.care}</p>
@@ -153,7 +194,161 @@ const discount =
 	</div>
 </BaseLayout>
 
-<script>
+<script define:vars={{ productCombinations, productOptionGroups: optionGroups, priceLocale: Astro.currentLocale ?? 'pt' }}>
+	const combinations = productCombinations ?? [];
+	const optionGroups = productOptionGroups ?? [];
+	const hasCombinations = combinations.length > 0;
+	const form = document.querySelector('[data-add-to-cart]');
+	const priceCurrent = document.querySelector('[data-price-current]');
+	const priceWas = document.querySelector('[data-price-was]');
+
+	function formatPrice(amount) {
+		const intlLocale = priceLocale === 'pt' ? 'pt-PT' : priceLocale;
+		return new Intl.NumberFormat(intlLocale, {
+			style: 'currency',
+			currency: 'EUR',
+			maximumFractionDigits: 0,
+		}).format(amount);
+	}
+
+	function optionsMatch(comboOptions, comboSelections, selected) {
+		if (Object.keys(comboSelections || {}).length) {
+			return Object.entries(selected).every(
+				([key, attributeId]) => comboSelections[key] === attributeId,
+			);
+		}
+		return Object.entries(selected).every(
+			([key, attributeId]) => {
+				const input = form?.querySelector(`[name="opt-${key}"][value="${attributeId}"]`);
+				const label = input?.dataset?.optionLabel;
+				return label != null && comboOptions[key] === label;
+			},
+		);
+	}
+
+	function selectedOptions() {
+		const selected = {};
+		for (const group of optionGroups) {
+			const input = form?.querySelector(`[name="opt-${group.key}"]:checked`);
+			if (input?.value) {
+				selected[group.key] = input.value;
+			}
+		}
+		return selected;
+	}
+
+	function selectedOptionLabels() {
+		const labels = {};
+		for (const group of optionGroups) {
+			const input = form?.querySelector(`[name="opt-${group.key}"]:checked`);
+			if (input?.dataset?.optionLabel) {
+				labels[group.key] = input.dataset.optionLabel;
+			}
+		}
+		return labels;
+	}
+
+	function matchCombination(selected, { requireAvailable = false } = {}) {
+		if (!hasCombinations) {
+			return null;
+		}
+
+		return (
+			combinations.find(
+				(combo) =>
+					(!requireAvailable || combo.available) &&
+					optionsMatch(combo.options, combo.selections, selected),
+			) ?? null
+		);
+	}
+
+	function findCombinationForDisplay(selected) {
+		return matchCombination(selected);
+	}
+
+	function combinationExistsForValue(groupKey, attributeId, selected) {
+		if (!hasCombinations) {
+			return true;
+		}
+
+		const trial = { ...selected, [groupKey]: attributeId };
+		return Boolean(findCombinationForDisplay(trial));
+	}
+
+	function refreshOptionStates() {
+		if (!form || !hasCombinations || !optionGroups.length) {
+			return;
+		}
+
+		const selected = selectedOptions();
+
+		for (const group of optionGroups) {
+			form.querySelectorAll(`[name="opt-${group.key}"]`).forEach((input) => {
+				const label = input.closest('label');
+				const exists = combinationExistsForValue(group.key, input.value, selected);
+				const combo = findCombinationForDisplay({
+					...selected,
+					[group.key]: input.value,
+				});
+				input.disabled = !exists;
+				label?.classList.toggle('is-disabled', !exists);
+				label?.classList.toggle('is-unavailable', exists && combo && !combo.available);
+			});
+		}
+	}
+
+	function updatePriceDisplay() {
+		if (!form) {
+			return;
+		}
+
+		const selected = selectedOptions();
+		const combo = findCombinationForDisplay(selected);
+
+		if (combo) {
+			form.dataset.price = String(combo.price);
+			if (priceCurrent) {
+				priceCurrent.textContent = formatPrice(combo.price);
+			}
+			if (priceWas) {
+				if (combo.originalPrice && combo.originalPrice > combo.price) {
+					priceWas.textContent = formatPrice(combo.originalPrice);
+					priceWas.hidden = false;
+				} else {
+					priceWas.hidden = true;
+				}
+			}
+			const addBtn = form.querySelector('.pdp__add');
+			if (addBtn) {
+				addBtn.disabled = false;
+				addBtn.dataset.outOfStock = combo.available ? 'false' : 'true';
+			}
+			return;
+		}
+
+		const addBtn = form.querySelector('.pdp__add');
+		if (addBtn) {
+			const allSelected = !optionGroups.length || optionGroups.every((group) => selected[group.key]);
+			addBtn.disabled = !allSelected;
+			addBtn.dataset.outOfStock = 'false';
+		}
+
+		if (hasCombinations) {
+			const fallback = combinations.find((combo) => combo.available) ?? combinations[0];
+			if (fallback) {
+				form.dataset.price = String(fallback.price);
+				if (priceCurrent) {
+					priceCurrent.textContent = formatPrice(fallback.price);
+				}
+			}
+		}
+	}
+
+	function syncSelection() {
+		refreshOptionStates();
+		updatePriceDisplay();
+	}
+
 	document.querySelectorAll('[data-thumb]').forEach((btn) => {
 		btn.addEventListener('click', () => {
 			const src = btn.getAttribute('data-thumb');
@@ -164,23 +359,60 @@ const discount =
 		});
 	});
 
+	document.querySelector('[data-add-to-cart]')?.addEventListener('change', syncSelection);
+	syncSelection();
+
 	document.querySelector('[data-add-to-cart]')?.addEventListener('submit', (e) => {
 		e.preventDefault();
 		const form = e.target;
 		const slug = form.dataset.slug;
 		const name = form.dataset.name;
-		const price = Number(form.dataset.price);
 		const image = form.dataset.image;
 		const addedMsg = form.dataset.addedMsg;
-		const size = form.querySelector('[name="size"]:checked')?.value;
-		const color = form.querySelector('[name="color"]:checked')?.value;
 		const qty = Number(form.querySelector('[name="qty"]')?.value || 1);
-		const id = `${slug}-${size}-${color}`;
+		const selected = selectedOptions();
+
+		let linePrice = Number(form.dataset.price);
+		let combinationId = null;
+
+		if (hasCombinations) {
+			if (optionGroups.some((group) => !selected[group.key])) {
+				return;
+			}
+			const combo = findCombinationForDisplay(selected);
+			if (!combo) {
+				return;
+			}
+			linePrice = combo.price;
+			combinationId = combo.id ?? null;
+		} else if (!Number.isFinite(linePrice) || linePrice <= 0) {
+			return;
+		}
+		const id = combinationId ? `${slug}-${combinationId}` : `${slug}-${Object.values(selected).join('-')}`;
+
+		const optionLabels = optionGroups.map((group) => ({
+			key: group.key,
+			name: group.name,
+			value: selectedOptionLabels()[group.key] ?? '',
+		}));
 
 		const cart = JSON.parse(localStorage.getItem('womni-cart') || '[]');
 		const existing = cart.find((item) => item.id === id);
 		if (existing) existing.qty += qty;
-		else cart.push({ id, slug, name, price, image, size, color, qty });
+		else {
+			cart.push({
+				id,
+				slug,
+				name,
+				price: linePrice,
+				image,
+				qty,
+				combinationId,
+				selections: optionGroups.length ? selected : undefined,
+				options: optionGroups.length ? selectedOptionLabels() : undefined,
+				optionLabels: optionGroups.length ? optionLabels : undefined,
+			});
+		}
 		localStorage.setItem('womni-cart', JSON.stringify(cart));
 		window.dispatchEvent(new Event('cart-updated'));
 
@@ -241,19 +473,31 @@ const discount =
 		font-size: 2.25rem;
 		font-weight: 500;
 	}
-	.pdp__rating {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		margin-top: 0.5rem;
-		font-size: 0.875rem;
-		color: var(--color-muted);
-	}
 	.pdp__price {
 		display: flex;
 		align-items: baseline;
 		gap: 0.75rem;
 		margin-top: 1rem;
+	}
+	.pdp__features {
+		margin: 0.75rem 0 0;
+		display: grid;
+		gap: 0.65rem;
+	}
+	.pdp__feature {
+		display: grid;
+		grid-template-columns: minmax(8rem, 40%) 1fr;
+		gap: 1rem;
+		font-size: 0.875rem;
+	}
+	.pdp__feature dt {
+		margin: 0;
+		color: var(--color-muted);
+		font-weight: 500;
+	}
+	.pdp__feature dd {
+		margin: 0;
+		color: var(--color-ink);
 	}
 	.pdp__current {
 		font-size: 1.5rem;
@@ -263,10 +507,6 @@ const discount =
 		font-size: 1.125rem;
 		color: var(--color-muted);
 		text-decoration: line-through;
-	}
-	.pdp__meta {
-		margin: 0.5rem 0 1.5rem;
-		color: var(--color-muted);
 	}
 	.pdp__fieldset {
 		margin: 0 0 1.25rem;
@@ -280,34 +520,45 @@ const discount =
 		letter-spacing: 0.06em;
 		margin-bottom: 0.5rem;
 	}
-	.pdp__sizes,
-	.pdp__colors {
+	.pdp__options {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.5rem;
 	}
-	.pdp__size,
-	.pdp__color {
+	.pdp__option {
 		cursor: pointer;
 	}
-	.pdp__size input,
-	.pdp__color input {
+	.pdp__option input {
 		position: absolute;
 		opacity: 0;
 	}
-	.pdp__size span,
-	.pdp__color span {
+	.pdp__option span {
 		display: block;
 		padding: 0.5rem 0.85rem;
 		border: 1px solid var(--color-border);
 		font-size: 0.8125rem;
 		transition: border-color var(--transition), background var(--transition);
 	}
-	.pdp__size input:checked + span,
-	.pdp__color input:checked + span {
+	.pdp__option input:checked + span {
 		border-color: var(--color-ink);
 		background: var(--color-ink);
 		color: white;
+	}
+	.pdp__option input:checked + .pdp__color-swatch {
+		outline: 2px solid var(--color-ink);
+		outline-offset: 2px;
+	}
+	.pdp__color-swatch {
+		display: block;
+		width: 2rem;
+		height: 2rem;
+		border-radius: 999px;
+		border: 1px solid var(--color-border);
+	}
+	.pdp__option.is-disabled span,
+	.pdp__option.is-disabled .pdp__color-swatch {
+		opacity: 0.35;
+		cursor: not-allowed;
 	}
 	.pdp__qty {
 		margin-bottom: 1.25rem;

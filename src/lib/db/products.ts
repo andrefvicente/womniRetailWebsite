@@ -1,7 +1,9 @@
-import type { ProductBase } from '../../data/types';
+import type { ProductFilters, ProductRowWithTranslation, ProductSort } from './types';
+import { rowToProduct, rowToProductBase } from './types';
+import { enrichProductCombinations, listCombinationsByProductSlugs, listProductCombinations } from './combinations';
+import { resolveProductPrice } from './prices';
+import type { Product } from '../../data/types';
 import { defaultLocale } from '../../i18n/config';
-import type { ProductFilters, ProductRow, ProductSort, ProductTranslationRow } from './types';
-import { rowToProductBase } from './types';
 
 export { getDatabase, hasDatabase } from './bindings';
 
@@ -16,28 +18,15 @@ function buildWhere(filters?: ProductFilters): { sql: string; binds: (string | n
 		clauses.push('p.badge = ?');
 		binds.push(filters.badge);
 	}
-	if (filters?.room?.length) {
-		clauses.push(`p.room IN (${filters.room.map(() => '?').join(', ')})`);
-		binds.push(...filters.room);
-	}
-	if (filters?.material?.length) {
-		clauses.push(`p.material IN (${filters.material.map(() => '?').join(', ')})`);
-		binds.push(...filters.material);
-	}
-	if (filters?.style?.length) {
-		clauses.push(`p.style IN (${filters.style.map(() => '?').join(', ')})`);
-		binds.push(...filters.style);
-	}
-	if (filters?.color?.length) {
-		for (const color of filters.color) {
-			clauses.push(`p.colors LIKE ?`);
-			binds.push(`%"${color}"%`);
-		}
-	}
 	if (filters?.q) {
-		clauses.push('(t.name LIKE ? OR p.material LIKE ? OR p.style LIKE ?)');
-		const term = `%${filters.q}%`;
-		binds.push(term, term, term);
+		clauses.push('t.name LIKE ?');
+		binds.push(`%${filters.q}%`);
+	}
+	if (filters?.categorySlugs?.length) {
+		clauses.push(
+			`p.category_slug IN (${filters.categorySlugs.map(() => '?').join(', ')})`,
+		);
+		binds.push(...filters.categorySlugs);
 	}
 
 	const sql = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
@@ -50,12 +39,10 @@ function orderByClause(sort: ProductSort = 'popular'): string {
 			return 'ORDER BY p.price ASC';
 		case 'price-desc':
 			return 'ORDER BY p.price DESC';
-		case 'rating':
-			return 'ORDER BY p.rating DESC, p.review_count DESC';
 		case 'new':
 			return "ORDER BY CASE WHEN p.badge = 'new' THEN 0 ELSE 1 END, p.created_at DESC";
 		default:
-			return "ORDER BY p.rating DESC, CASE WHEN p.badge = 'bestseller' THEN 0 ELSE 1 END, p.review_count DESC";
+			return "ORDER BY CASE WHEN p.badge = 'bestseller' THEN 0 ELSE 1 END, p.created_at DESC, p.slug ASC";
 	}
 }
 
@@ -64,10 +51,10 @@ export async function listProductRows(
 	locale: string = defaultLocale,
 	filters?: ProductFilters,
 	sort: ProductSort = 'popular',
-): Promise<ProductRow[]> {
+): Promise<ProductRowWithTranslation[]> {
 	const { sql: whereSql, binds } = buildWhere(filters);
 	const query = `
-		SELECT p.*
+		SELECT p.*, t.locale, t.name, t.description, t.care
 		FROM products p
 		INNER JOIN product_translations t ON t.slug = p.slug AND t.locale = ?
 		${whereSql}
@@ -76,35 +63,91 @@ export async function listProductRows(
 	const result = await db
 		.prepare(query)
 		.bind(locale, ...binds)
-		.all<ProductRow>();
+		.all<ProductRowWithTranslation>();
 	return result.results ?? [];
+}
+
+export async function listLocalizedProducts(
+	db: D1Database,
+	locale: string = defaultLocale,
+	filters?: ProductFilters,
+	sort: ProductSort = 'popular',
+): Promise<Product[]> {
+	const rows = await listProductRows(db, locale, filters, sort);
+	const combinationsBySlug = await listCombinationsByProductSlugs(
+		db,
+		rows.map((row) => row.slug),
+	);
+
+	return rows.map((row) => {
+		const baseProduct = rowToProduct(row);
+		const combinations = combinationsBySlug.get(row.slug);
+		const enriched = combinations?.length
+			? enrichProductCombinations(combinations, baseProduct.optionGroups)
+			: undefined;
+		const { price, originalPrice } = resolveProductPrice(row.price, enriched);
+		return {
+			...rowToProduct({
+				...row,
+				price,
+				original_price: originalPrice ?? row.original_price,
+			}),
+			combinations: enriched?.length ? enriched : undefined,
+		};
+	});
 }
 
 export async function getProductRow(
 	db: D1Database,
 	slug: string,
 	locale: string = defaultLocale,
-): Promise<ProductRow | null> {
+): Promise<ProductRowWithTranslation | null> {
 	const row = await db
 		.prepare(
-			`SELECT p.* FROM products p
+			`SELECT p.*, t.locale, t.name, t.description, t.care
+			 FROM products p
 			 INNER JOIN product_translations t ON t.slug = p.slug AND t.locale = ?
 			 WHERE p.slug = ?`,
 		)
 		.bind(locale, slug)
-		.first<ProductRow>();
+		.first<ProductRowWithTranslation>();
 	return row ?? null;
+}
+
+export async function getLocalizedProductFromDb(
+	db: D1Database,
+	slug: string,
+	locale: string = defaultLocale,
+): Promise<Product | null> {
+	const row = await getProductRow(db, slug, locale);
+	if (!row) {
+		return null;
+	}
+	const baseProduct = rowToProduct(row);
+	const combinations = await listProductCombinations(db, slug);
+	const enriched = combinations.length
+		? enrichProductCombinations(combinations, baseProduct.optionGroups)
+		: [];
+	const { price, originalPrice } = resolveProductPrice(row.price, enriched);
+	return {
+		...rowToProduct({
+			...row,
+			price,
+			original_price: originalPrice ?? row.original_price,
+		}),
+		combinations: enriched.length ? enriched : undefined,
+	};
 }
 
 export async function getProductTranslation(
 	db: D1Database,
 	slug: string,
 	locale: string = defaultLocale,
-): Promise<ProductTranslationRow | null> {
+): Promise<import('./types').ProductTranslationRow | null> {
 	const row = await db
 		.prepare('SELECT * FROM product_translations WHERE slug = ? AND locale = ?')
 		.bind(slug, locale)
-		.first<ProductTranslationRow>();
+		.first<import('./types').ProductTranslationRow>();
 	return row ?? null;
 }
 
@@ -113,7 +156,7 @@ export async function listProductsBase(
 	locale?: string,
 	filters?: ProductFilters,
 	sort?: ProductSort,
-): Promise<ProductBase[]> {
+): Promise<import('../../data/types').ProductBase[]> {
 	const rows = await listProductRows(db, locale, filters, sort);
 	return rows.map(rowToProductBase);
 }
@@ -122,7 +165,7 @@ export async function getProductBase(
 	db: D1Database,
 	slug: string,
 	locale?: string,
-): Promise<ProductBase | null> {
+): Promise<import('../../data/types').ProductBase | null> {
 	const row = await getProductRow(db, slug, locale);
 	return row ? rowToProductBase(row) : null;
 }
@@ -136,18 +179,12 @@ export function parseProductFiltersFromUrl(url: URL): ProductFilters {
 	}
 	const q = url.searchParams.get('q');
 	if (q) filters.q = q.toLowerCase();
-	for (const key of ['room', 'material', 'style'] as const) {
-		const val = url.searchParams.get(key);
-		if (val) filters[key] = val.split(',') as ProductFilters[typeof key];
-	}
-	const color = url.searchParams.get('color');
-	if (color) filters.color = color.split(',') as ProductFilters['color'];
 	return filters;
 }
 
 export function parseProductSort(url: URL): ProductSort {
 	const sort = url.searchParams.get('sort');
-	if (sort === 'price-asc' || sort === 'price-desc' || sort === 'new' || sort === 'rating') {
+	if (sort === 'price-asc' || sort === 'price-desc' || sort === 'new') {
 		return sort;
 	}
 	return 'popular';

@@ -1,11 +1,11 @@
 import type { UiDictionary } from './types';
 
 const pt: UiDictionary = {
-	brand: 'Womni Rugs',
+	brand: "Casa d'Almeida",
 	meta: {
 		defaultDescription:
 			'Tapetes premium para cada divisão — envio grátis, devoluções fáceis e ajuda especializada na escolha do tamanho.',
-		titleSuffix: 'Womni Rugs',
+		titleSuffix: "Casa d'Almeida",
 	},
 	aria: {
 		mainNav: 'Principal',
@@ -120,6 +120,7 @@ const pt: UiDictionary = {
 		addedToCart: 'Adicionado ao carrinho ✓',
 		trust: ['Envio grátis acima de 99 €', 'Devoluções em 365 dias', 'Entrega em 3–7 dias úteis'],
 		description: 'Descrição',
+		features: 'Características',
 		care: 'Instruções de cuidado',
 		deliveryReturns: 'Entrega e devoluções',
 		deliveryText:
@@ -146,6 +147,11 @@ const pt: UiDictionary = {
 		color: 'Cor',
 		qty: 'Qtd.',
 		remove: 'Remover',
+		product: 'Produto',
+		price: 'Preço',
+		quantity: 'Quantidade',
+		lineTotal: 'Total',
+		image: 'Imagem',
 	},
 	badges: {
 		sale: 'Promoção',

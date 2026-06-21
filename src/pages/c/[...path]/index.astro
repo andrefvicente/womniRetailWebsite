@@ -5,34 +5,85 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
 import ProductCard from '../../../components/ProductCard.astro';
 import FilterSidebar from '../../../components/FilterSidebar.astro';
-import { getLocalizedProducts, useTranslations } from '../../../i18n';
+import { getDatabase, hasDatabase } from '../../../lib/db/bindings';
+import {
+	categoryHref,
+	categorySlugFromPath,
+	collectDescendantSlugs,
+	findParentCategory,
+	getCategoryBySlug,
+	getDefaultCatalogHref,
+	listCategories,
+	listChildCategories,
+	resolveCatalogId,
+} from '../../../lib/db/categories';
+import {
+	listLocalizedProducts,
+	parseProductFiltersFromUrl,
+	parseProductSort,
+} from '../../../lib/db/products';
+import { loadSiteNavigation } from '../../../lib/site/navigation';
+import { useTranslations } from '../../../i18n';
 
 const t = useTranslations(Astro.currentLocale);
-const localized = await getLocalizedProducts(Astro.currentLocale);
+const slug = categorySlugFromPath(Astro.params.path);
+
+if (!slug) {
+	const nav = await loadSiteNavigation();
+	return Astro.redirect(nav.defaultCatalogHref);
+}
+
+if (!hasDatabase()) {
+	return Astro.redirect('/');
+}
+
+const db = getDatabase();
+const catalogId = await resolveCatalogId(db);
+const category = await getCategoryBySlug(db, slug, catalogId);
+
+if (!category) {
+	return Astro.redirect(await getDefaultCatalogHref(db, catalogId));
+}
+
+const allCategories = await listCategories(db, catalogId);
+const categorySlugs = collectDescendantSlugs(allCategories, slug);
+const childCategories = listChildCategories(allCategories, slug);
+const urlFilters = parseProductFiltersFromUrl(Astro.url);
+const sort = parseProductSort(Astro.url);
+
+const localized = await listLocalizedProducts(
+	db,
+	Astro.currentLocale,
+	{ ...urlFilters, categorySlugs },
+	sort,
+);
 
 const productData = localized.map((p) => ({
 	slug: p.slug,
 	name: p.name,
 	price: p.price,
 	originalPrice: p.originalPrice ?? null,
-	material: p.material,
-	style: p.style,
-	room: p.room,
-	colors: p.colors,
 	badge: p.badge ?? null,
-	rating: p.rating,
 }));
 
-const sortKeys = ['popular', 'price-asc', 'price-desc', 'new', 'rating'] as const;
+const sortKeys = ['popular', 'price-asc', 'price-desc', 'new'] as const;
+const breadcrumbItems = [{ label: t.brand, href: '/' }];
+
+const parent = findParentCategory(allCategories, category);
+if (parent) {
+	breadcrumbItems.push({ label: parent.name, href: categoryHref(parent.slug) });
+}
+
+breadcrumbItems.push({ label: category.name });
 ---
 
-<BaseLayout title={t.catalog.title} description={t.catalog.metaDescription}>
+<BaseLayout title={category.name} description={t.catalog.metaDescription}>
 	<div class="container listing">
-		<Breadcrumbs items={[{ label: t.brand, href: '/' }, { label: t.catalog.title }]} />
+		<Breadcrumbs items={breadcrumbItems} />
 
 		<header class="listing__header">
 			<div>
-				<h1>{t.catalog.title}</h1>
+				<h1>{category.name}</h1>
 				<p class="listing__count">
 					<span data-result-count>{localized.length}</span> {t.catalog.productCount}
 				</p>
@@ -43,12 +94,26 @@ const sortKeys = ['popular', 'price-asc', 'price-desc', 'new', 'rating'] as cons
 					<span class="sr-only">{t.catalog.sortLabel}</span>
 					<select name="sort" data-sort>
 						{sortKeys.map((key) => (
-							<option value={key}>{t.catalog.sort[key]}</option>
+							<option value={key} selected={sort === key}>{t.catalog.sort[key]}</option>
 						))}
 					</select>
 				</label>
 			</div>
 		</header>
+
+		{childCategories.length > 0 && (
+			<nav class="listing__subcats" aria-label={t.aria.mainNav}>
+				<ul>
+					{childCategories.map((child) => (
+						<li>
+							<a href={categoryHref(child.slug)} class:list={{ 'is-active': child.slug === slug }}>
+								{child.name}
+							</a>
+						</li>
+					))}
+				</ul>
+			</nav>
+		)}
 
 		<div class="listing__layout">
 			<FilterSidebar />
@@ -81,31 +146,13 @@ const sortKeys = ['popular', 'price-asc', 'price-desc', 'new', 'rating'] as cons
 	}
 
 	function getActiveFilters() {
-		const filters = { room: [], material: [], style: [], color: [], sale: false, q: '' };
+		const filters = { sale: false, q: '' };
 		if (params.get('sale') === 'true') filters.sale = true;
 		filters.q = (params.get('q') || '').toLowerCase();
-		for (const type of ['room', 'material', 'style', 'color']) {
-			const val = params.get(type);
-			if (val) filters[type] = val.split(',');
-		}
-		document.querySelectorAll('[data-filter]:checked').forEach((el) => {
-			const type = el.getAttribute('data-filter');
-			if (type && type !== 'price' && !filters[type].includes(el.value)) {
-				filters[type].push(el.value);
-			}
-		});
 		return filters;
 	}
 
 	function applyUrlToFilters() {
-		['room', 'material', 'style', 'color'].forEach((key) => {
-			const val = params.get(key);
-			if (val) {
-				document.querySelectorAll(`[data-filter="${key}"]`).forEach((el) => {
-					if (el.value === val) el.checked = true;
-				});
-			}
-		});
 		const sort = params.get('sort');
 		if (sort && sortSelect) sortSelect.value = sort;
 		const q = params.get('q');
@@ -120,10 +167,6 @@ const sortKeys = ['popular', 'price-asc', 'price-desc', 'new', 'rating'] as cons
 		if (!p) return false;
 		if (filters.sale && !p.originalPrice) return false;
 		if (filters.q && !p.name.toLowerCase().includes(filters.q)) return false;
-		if (filters.room.length && !filters.room.includes(p.room)) return false;
-		if (filters.material.length && !filters.material.includes(p.material)) return false;
-		if (filters.style.length && !filters.style.includes(p.style)) return false;
-		if (filters.color.length && !p.colors.some((c) => filters.color.includes(c))) return false;
 		if (p.price > maxPrice) return false;
 		const badge = params.get('badge');
 		if (badge && p.badge !== badge) return false;
@@ -140,16 +183,10 @@ const sortKeys = ['popular', 'price-asc', 'price-desc', 'new', 'rating'] as cons
 						return a.price - b.price;
 					case 'price-desc':
 						return b.price - a.price;
-					case 'rating':
-						return b.rating - a.rating;
 					case 'new':
 						return (b.badge === 'new' ? 1 : 0) - (a.badge === 'new' ? 1 : 0);
 					default:
-						return (
-							b.rating * 100 +
-							(b.badge === 'bestseller' ? 10 : 0) -
-							(a.rating * 100 + (a.badge === 'bestseller' ? 10 : 0))
-						);
+						return (b.badge === 'bestseller' ? 1 : 0) - (a.badge === 'bestseller' ? 1 : 0);
 				}
 			});
 		sorted.forEach((p) => {
@@ -224,6 +261,29 @@ const sortKeys = ['popular', 'price-asc', 'price-desc', 'new', 'rating'] as cons
 		margin: 0.35rem 0 0;
 		color: var(--color-muted);
 		font-size: 0.875rem;
+	}
+	.listing__subcats {
+		margin-bottom: 1.5rem;
+	}
+	.listing__subcats ul {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.listing__subcats a {
+		display: inline-block;
+		padding: 0.45rem 0.85rem;
+		border: 1px solid var(--color-border);
+		font-size: 0.8125rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+	.listing__subcats a.is-active {
+		border-color: var(--color-accent);
+		color: var(--color-accent);
 	}
 	.listing__toolbar {
 		display: flex;

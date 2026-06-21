@@ -2,7 +2,6 @@
 import { Image } from 'astro:assets';
 import type { Product } from '../data/types';
 import { formatPrice, useTranslations } from '../i18n';
-import { sizeLabels } from '../data/products';
 
 interface Props {
 	product: Product;
@@ -14,7 +13,7 @@ const discount =
 	product.originalPrice && product.originalPrice > product.price
 		? Math.round((1 - product.price / product.originalPrice) * 100)
 		: null;
-const minSize = product.sizes[0] ? sizeLabels[product.sizes[0]] : '';
+const variantHint = product.optionGroups?.[0]?.values[0]?.name ?? '';
 ---
 
 <article class="product-card" data-product-card data-slug={product.slug}>
@@ -25,28 +24,17 @@ const minSize = product.sizes[0] ? sizeLabels[product.sizes[0]] : '';
 		{product.badge === 'bestseller' && <span class="badge badge--new">{t.badges.bestseller}</span>}
 	</a>
 	<div class="product-card__body">
-		<div class="product-card__meta">
-			<span class="stars" aria-label={t.aria.stars(product.rating)}>
-				{'★'.repeat(Math.floor(product.rating))}{product.rating % 1 >= 0.5 ? '½' : ''}
-			</span>
-			<span class="product-card__reviews">({product.reviewCount})</span>
-		</div>
 		<h3 class="product-card__title">
 			<a href={`/product/${product.slug}`}>{product.name}</a>
 		</h3>
-		<p class="product-card__attrs">
-			{t.materials[product.material]} · {t.styles[product.style]}
-		</p>
 		<div class="product-card__price">
 			<span class="product-card__current">{formatPrice(product.price, Astro.currentLocale)}</span>
 			{product.originalPrice && (
 				<span class="product-card__was">{formatPrice(product.originalPrice, Astro.currentLocale)}</span>
 			)}
 		</div>
-		{minSize && (
-			<p class="product-card__sizes">
-				{t.product.fromSize} {minSize}
-			</p>
+		{variantHint && (
+			<p class="product-card__variants">{variantHint}{product.optionGroups && product.optionGroups.length > 1 ? '+' : ''}</p>
 		)}
 	</div>
 </article>
@@ -80,17 +68,8 @@ const minSize = product.sizes[0] ? sizeLabels[product.sizes[0]] : '';
 	.product-card__body {
 		padding: 1rem 0.25rem 1.25rem;
 	}
-	.product-card__meta {
-		display: flex;
-		align-items: center;
-		gap: 0.35rem;
-		font-size: 0.75rem;
-	}
-	.product-card__reviews {
-		color: var(--color-muted);
-	}
 	.product-card__title {
-		margin: 0.35rem 0 0;
+		margin: 0;
 		font-family: var(--font-display);
 		font-size: 1.125rem;
 		font-weight: 500;
@@ -98,11 +77,6 @@ const minSize = product.sizes[0] ? sizeLabels[product.sizes[0]] : '';
 	}
 	.product-card__title a:hover {
 		color: var(--color-accent);
-	}
-	.product-card__attrs {
-		margin: 0.25rem 0 0;
-		font-size: 0.8125rem;
-		color: var(--color-muted);
 	}
 	.product-card__price {
 		display: flex;
@@ -118,7 +92,7 @@ const minSize = product.sizes[0] ? sizeLabels[product.sizes[0]] : '';
 		color: var(--color-muted);
 		text-decoration: line-through;
 	}
-	.product-card__sizes {
+	.product-card__variants {
 		margin: 0.25rem 0 0;
 		font-size: 0.75rem;
 		color: var(--color-muted);

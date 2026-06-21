@@ -1,0 +1,28 @@
+---
+import type { NavCategoryLink } from '../lib/db/categories';
+
+interface Props {
+	items: NavCategoryLink[];
+	class?: string;
+	subnavClass?: string;
+	depth?: number;
+}
+
+const { items, class: listClass, subnavClass = 'header__subnav', depth = 0 } = Astro.props;
+---
+
+<ul class={listClass}>
+	{items.map((item) => (
+		<li class:list={{ 'has-children': item.children?.length }}>
+			<a href={item.href}>{item.label}</a>
+			{item.children?.length ? (
+				<Astro.self
+					items={item.children}
+					class={subnavClass}
+					subnavClass={subnavClass}
+					depth={depth + 1}
+				/>
+			) : null}
+		</li>
+	))}
+</ul>

@@ -5,10 +5,11 @@ import { Image } from 'astro:assets';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { rugImages } from '../data/images';
 import ProductCard from '../components/ProductCard.astro';
-import { categoryTiles } from '../data/navigation';
+import { loadSiteNavigation } from '../lib/site/navigation';
 import { getLocalizedProducts, useTranslations } from '../i18n';
 
 const t = useTranslations(Astro.currentLocale);
+const { categoryTiles, defaultCatalogHref } = await loadSiteNavigation();
 const localized = await getLocalizedProducts(Astro.currentLocale);
 const featured = localized.filter((p) => p.badge === 'bestseller' || p.badge === 'sale').slice(0, 4);
 const newArrivals = localized.filter((p) => p.badge === 'new').concat(localized).slice(0, 4);
@@ -22,8 +23,8 @@ const newArrivals = localized.filter((p) => p.badge === 'new').concat(localized)
 				<h1>{t.home.title}</h1>
 				<p class="hero__lead">{t.home.lead}</p>
 				<div class="hero__cta">
-					<a href="/c/rugs" class="btn btn--accent">{t.home.shopAll}</a>
-					<a href="/c/rugs?sale=true" class="btn btn--outline">{t.home.viewSale}</a>
+					<a href={defaultCatalogHref} class="btn btn--accent">{t.home.shopAll}</a>
+					<a href={`${defaultCatalogHref}?sale=true`} class="btn btn--outline">{t.home.viewSale}</a>
 				</div>
 			</div>
 			<div class="hero__visual">
@@ -36,21 +37,20 @@ const newArrivals = localized.filter((p) => p.badge === 'new').concat(localized)
 		<div class="container">
 			<header class="section-header">
 				<h2>{t.home.shopByRoom}</h2>
-				<a href="/c/rugs">{t.home.viewAll}</a>
+				<a href={defaultCatalogHref}>{t.home.viewAll}</a>
 			</header>
 			<div class="categories__grid">
-				{categoryTiles.map((cat) => {
-					const tile = t.categoryTiles[cat.id];
-					return (
-						<a href={cat.href} class="category-tile">
-							<Image src={cat.image} alt="" width={400} height={300} loading="lazy" />
-							<span class="category-tile__overlay">
-								<span class="category-tile__title">{tile?.title ?? cat.id}</span>
-								{tile?.count != null && <span class="category-tile__count">{t.home.rugCount(tile.count)}</span>}
-							</span>
-						</a>
-					);
-				})}
+				{categoryTiles.map((cat) => (
+					<a href={cat.href} class="category-tile">
+						<Image src={cat.image} alt="" width={400} height={300} loading="lazy" />
+						<span class="category-tile__overlay">
+							<span class="category-tile__title">{cat.name}</span>
+							{cat.count > 0 && (
+								<span class="category-tile__count">{t.home.rugCount(cat.count)}</span>
+							)}
+						</span>
+					</a>
+				))}
 			</div>
 		</div>
 	</section>
@@ -59,7 +59,7 @@ const newArrivals = localized.filter((p) => p.badge === 'new').concat(localized)
 		<div class="container">
 			<header class="section-header">
 				<h2>{t.home.bestSellersSale}</h2>
-				<a href="/c/rugs?badge=bestseller">{t.home.seeMore}</a>
+				<a href={`${defaultCatalogHref}?badge=bestseller`}>{t.home.seeMore}</a>
 			</header>
 			<div class="product-grid">
 				{featured.map((product) => (
@@ -90,7 +90,7 @@ const newArrivals = localized.filter((p) => p.badge === 'new').concat(localized)
 		<div class="container">
 			<header class="section-header">
 				<h2>{t.home.newArrivals}</h2>
-				<a href="/c/rugs?sort=new">{t.home.seeMore}</a>
+				<a href={`${defaultCatalogHref}?sort=new`}>{t.home.seeMore}</a>
 			</header>
 			<div class="product-grid">
 				{newArrivals.map((product) => (

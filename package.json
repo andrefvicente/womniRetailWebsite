@@ -18,8 +18,10 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^13.5.3",
-    "astro": "^6.3.6",
+    "@astrojs/cloudflare": "^13.7.0",
+    "@fontsource/cormorant-garamond": "^5.2.11",
+    "@fontsource/dm-sans": "^5.2.8",
+    "astro": "^6.4.8",
     "wrangler": "^4.93.1"
   },
   "devDependencies": {

@@ -1,11 +1,13 @@
 ---
-export const prerender = true;
+export const prerender = false;
 
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
+import { loadSiteNavigation } from '../lib/site/navigation';
 import { useTranslations } from '../i18n';
 
 const t = useTranslations(Astro.currentLocale);
+const { defaultCatalogHref } = await loadSiteNavigation();
 
 const cartI18n = {
 	loading: t.cart.loading,
@@ -15,7 +17,14 @@ const cartI18n = {
 	color: t.cart.color,
 	qty: t.cart.qty,
 	remove: t.cart.remove,
-	subtotal: t.cart.subtotal,
+	product: t.cart.product,
+	price: t.cart.price,
+	quantity: t.cart.quantity,
+		lineTotal: t.cart.lineTotal,
+		image: t.cart.image,
+		decreaseQty: 'Diminuir quantidade',
+		increaseQty: 'Aumentar quantidade',
+		subtotal: t.cart.subtotal,
 	shipping: t.cart.shipping,
 	shippingCalc: t.cart.shippingCalc,
 	shippingFree: t.cart.shippingFree,
@@ -55,13 +64,13 @@ const cartI18n = {
 				</div>
 				<p class="cart-page__note">{t.cart.freeShippingNote}</p>
 				<button type="button" class="btn btn--accent cart-page__checkout">{t.cart.checkout}</button>
-				<a href="/c/rugs" class="cart-page__continue">{t.cart.continueShopping}</a>
+				<a href={defaultCatalogHref} class="cart-page__continue">{t.cart.continueShopping}</a>
 			</aside>
 		</div>
 
 		<div class="cart-page__empty" data-cart-empty hidden>
 			<p>{t.cart.empty}</p>
-			<a href="/c/rugs" class="btn">{t.cart.shopRugs}</a>
+			<a href={defaultCatalogHref} class="btn">{t.cart.shopRugs}</a>
 		</div>
 	</div>
 </BaseLayout>
@@ -73,6 +82,57 @@ const cartI18n = {
 			currency: cartI18n.currency,
 			maximumFractionDigits: 0,
 		}).format(n);
+	}
+
+	function formatSizeValue(value) {
+		const match = String(value).trim().match(/^0*(\d+)\s*[x×]\s*0*(\d+)/i);
+		if (match) {
+			return `${match[1]} × ${match[2]} cm`;
+		}
+		return String(value).trim();
+	}
+
+	function variantEntries(item) {
+		if (item.optionLabels?.length) {
+			return item.optionLabels
+				.filter((entry) => entry.value)
+				.map((entry) => ({
+					name: entry.name,
+					value:
+						entry.name.toLowerCase().includes('tamanho') ||
+						entry.key === 'g1' ||
+						entry.key === 'size'
+							? formatSizeValue(entry.value)
+							: entry.value,
+				}));
+		}
+		if (item.options && Object.keys(item.options).length) {
+			return Object.entries(item.options).map(([key, value]) => ({
+				name: key.startsWith('g') ? (key === 'g1' ? cartI18n.size : cartI18n.color) : key,
+				value: key === 'g1' || key === 'size' ? formatSizeValue(value) : value,
+			}));
+		}
+		const entries = [];
+		if (item.size) {
+			entries.push({ name: cartI18n.size, value: formatSizeValue(item.size) });
+		}
+		if (item.color) {
+			entries.push({ name: cartI18n.color, value: item.color });
+		}
+		return entries;
+	}
+
+	function formatVariantHtml(item) {
+		const entries = variantEntries(item);
+		if (!entries.length) {
+			return '';
+		}
+		return `<p class="cart-table__meta">${entries
+			.map(
+				(entry) =>
+					`<span class="cart-table__meta-item"><span class="cart-table__meta-label">${entry.name}</span><span class="cart-table__meta-value">${entry.value}</span></span>`,
+			)
+			.join('')}</p>`;
 	}
 
 	function renderCart() {
@@ -100,25 +160,83 @@ const cartI18n = {
 		const total = subtotal + shipping;
 
 		if (itemsEl) {
-			itemsEl.innerHTML = cart
-				.map(
-					(item) => `
-				<article class="cart-item" data-id="${item.id}">
-					<img src="${item.image}" alt="${item.name}" width="120" height="150" />
-					<div class="cart-item__details">
-						<h3><a href="/product/${item.slug}">${item.name}</a></h3>
-						<p>${cartI18n.size}: ${String(item.size).replace('x', ' × ')} cm · ${cartI18n.color}: ${item.color}</p>
-						<p class="cart-item__price">${formatPrice(item.price)}</p>
-					</div>
-					<div class="cart-item__actions">
-						<label>${cartI18n.qty} <input type="number" min="1" max="10" value="${item.qty}" data-qty data-id="${item.id}" /></label>
-						<button type="button" class="cart-item__remove" data-remove="${item.id}">${cartI18n.remove}</button>
-					</div>
-					<p class="cart-item__line">${formatPrice(item.price * item.qty)}</p>
-				</article>
-			`,
-				)
+			const rows = cart
+				.map((item) => {
+					const variantHtml = formatVariantHtml(item);
+					return `
+				<tr class="cart-table__row" data-id="${item.id}">
+					<td class="cart-table__cell cart-table__cell--image">
+						<a href="/product/${item.slug}" class="cart-table__image-link" tabindex="-1" aria-hidden="true">
+							<img src="${item.image}" alt="" width="72" height="90" loading="lazy" />
+						</a>
+					</td>
+					<td class="cart-table__cell cart-table__cell--product">
+						<a href="/product/${item.slug}" class="cart-table__name">${item.name}</a>
+						${variantHtml}
+					</td>
+					<td class="cart-table__cell cart-table__cell--price">
+						<div class="cart-table__cell-inner cart-table__cell-inner--end">
+							<span class="cart-table__money">${formatPrice(item.price)}</span>
+						</div>
+					</td>
+					<td class="cart-table__cell cart-table__cell--qty">
+						<div class="cart-table__cell-inner cart-table__cell-inner--center">
+							<div class="cart-qty" data-qty-control data-id="${item.id}">
+								<button type="button" class="cart-qty__btn" data-qty-dec aria-label="${cartI18n.decreaseQty}">
+									<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+								</button>
+								<input type="number" min="1" max="10" value="${item.qty}" data-qty aria-label="${cartI18n.quantity}" readonly />
+								<button type="button" class="cart-qty__btn" data-qty-inc aria-label="${cartI18n.increaseQty}">
+									<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+								</button>
+							</div>
+						</div>
+					</td>
+					<td class="cart-table__cell cart-table__cell--total">
+						<div class="cart-table__cell-inner cart-table__cell-inner--end">
+							<span class="cart-table__money cart-table__money--total">${formatPrice(item.price * item.qty)}</span>
+						</div>
+					</td>
+					<td class="cart-table__cell cart-table__cell--remove">
+						<div class="cart-table__cell-inner cart-table__cell-inner--center">
+							<button type="button" class="cart-table__remove" data-remove="${item.id}" aria-label="${cartI18n.remove} ${item.name}">
+								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+									<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+									<path d="M10 11v6M14 11v6" />
+								</svg>
+							</button>
+						</div>
+					</td>
+				</tr>
+			`;
+				})
 				.join('');
+
+			itemsEl.innerHTML = `
+				<div class="cart-table-wrap">
+					<table class="cart-table">
+						<colgroup>
+							<col class="cart-table__col cart-table__col--image" />
+							<col class="cart-table__col cart-table__col--product" />
+							<col class="cart-table__col cart-table__col--price" />
+							<col class="cart-table__col cart-table__col--qty" />
+							<col class="cart-table__col cart-table__col--total" />
+							<col class="cart-table__col cart-table__col--remove" />
+						</colgroup>
+						<thead>
+							<tr>
+								<th scope="col" class="cart-table__head cart-table__head--image"><span class="sr-only">${cartI18n.image}</span></th>
+								<th scope="col" class="cart-table__head cart-table__head--product">${cartI18n.product}</th>
+								<th scope="col" class="cart-table__head cart-table__head--price">${cartI18n.price}</th>
+								<th scope="col" class="cart-table__head cart-table__head--qty">${cartI18n.quantity}</th>
+								<th scope="col" class="cart-table__head cart-table__head--total">${cartI18n.lineTotal}</th>
+								<th scope="col" class="cart-table__head cart-table__head--remove"><span class="sr-only">${cartI18n.remove}</span></th>
+							</tr>
+						</thead>
+						<tbody>${rows}</tbody>
+					</table>
+				</div>
+			`;
 		}
 
 		if (subtotalEl) subtotalEl.textContent = formatPrice(subtotal);
@@ -126,15 +244,32 @@ const cartI18n = {
 		if (shippingEl)
 			shippingEl.textContent = shipping === 0 ? cartI18n.shippingFree : formatPrice(shipping);
 
-		itemsEl?.querySelectorAll('[data-qty]').forEach((input) => {
-			input.addEventListener('change', () => {
-				const id = input.getAttribute('data-id');
+		itemsEl?.querySelectorAll('[data-qty-control]').forEach((control) => {
+			const id = control.getAttribute('data-id');
+			const input = control.querySelector('[data-qty]');
+			const dec = control.querySelector('[data-qty-dec]');
+			const inc = control.querySelector('[data-qty-inc]');
+
+			function updateQty(next) {
 				const cart = JSON.parse(localStorage.getItem('womni-cart') || '[]');
 				const item = cart.find((i) => i.id === id);
-				if (item) item.qty = Math.max(1, Number(input.value));
+				if (!item) return;
+				item.qty = Math.min(10, Math.max(1, next));
 				localStorage.setItem('womni-cart', JSON.stringify(cart));
 				window.dispatchEvent(new Event('cart-updated'));
 				renderCart();
+			}
+
+			input?.addEventListener('change', () => {
+				updateQty(Number(input.value));
+			});
+
+			dec?.addEventListener('click', () => {
+				updateQty(Number(input?.value || 1) - 1);
+			});
+
+			inc?.addEventListener('click', () => {
+				updateQty(Number(input?.value || 1) + 1);
 			});
 		});
 
@@ -168,58 +303,6 @@ const cartI18n = {
 		grid-template-columns: 1fr 320px;
 		gap: 3rem;
 		align-items: start;
-	}
-	.cart-item {
-		display: grid;
-		grid-template-columns: 120px 1fr auto auto;
-		gap: 1.5rem;
-		align-items: center;
-		padding: 1.5rem 0;
-		border-bottom: 1px solid var(--color-border);
-	}
-	.cart-item img {
-		aspect-ratio: 4 / 5;
-		object-fit: cover;
-		background: #f0eeeb;
-	}
-	.cart-item__details h3 {
-		margin: 0;
-		font-family: var(--font-display);
-		font-size: 1.25rem;
-		font-weight: 500;
-	}
-	.cart-item__details p {
-		margin: 0.35rem 0 0;
-		font-size: 0.875rem;
-		color: var(--color-muted);
-	}
-	.cart-item__price {
-		font-weight: 600;
-		color: var(--color-ink) !important;
-	}
-	.cart-item__actions {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		font-size: 0.875rem;
-	}
-	.cart-item__actions input {
-		width: 3rem;
-		padding: 0.35rem;
-		border: 1px solid var(--color-border);
-	}
-	.cart-item__remove {
-		border: none;
-		background: none;
-		color: var(--color-muted);
-		cursor: pointer;
-		text-decoration: underline;
-		font-size: 0.8125rem;
-		padding: 0;
-	}
-	.cart-item__line {
-		font-weight: 600;
-		text-align: right;
 	}
 	.cart-page__summary {
 		padding: 1.5rem;
@@ -272,16 +355,270 @@ const cartI18n = {
 		margin-bottom: 1.5rem;
 		color: var(--color-muted);
 	}
+
+	/* JS-rendered cart rows — must be :global (no Astro scope attribute) */
+	.cart-page :global(.cart-table-wrap) {
+		overflow-x: auto;
+		border: 1px solid var(--color-border);
+		background: var(--color-surface);
+		border-radius: var(--radius);
+		box-shadow: var(--shadow-sm);
+	}
+	.cart-page :global(.cart-table) {
+		width: 100%;
+		table-layout: fixed;
+		border-collapse: collapse;
+		font-size: 0.9375rem;
+	}
+	.cart-page :global(.cart-table__col--image) {
+		width: 5rem;
+	}
+	.cart-page :global(.cart-table__col--price) {
+		width: 5.5rem;
+	}
+	.cart-page :global(.cart-table__col--qty) {
+		width: 7rem;
+	}
+	.cart-page :global(.cart-table__col--total) {
+		width: 5.5rem;
+	}
+	.cart-page :global(.cart-table__col--remove) {
+		width: 3rem;
+	}
+	.cart-page :global(.cart-table__head) {
+		padding: 0.625rem 1rem;
+		text-align: left;
+		font-family: var(--font-sans);
+		font-size: 0.6875rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+		color: var(--color-muted);
+		background: var(--color-bg);
+		border-bottom: 1px solid var(--color-border);
+		vertical-align: middle;
+	}
+	.cart-page :global(.cart-table__head--price),
+	.cart-page :global(.cart-table__head--total) {
+		text-align: right;
+		padding-right: 1.25rem;
+	}
+	.cart-page :global(.cart-table__head--qty),
+	.cart-page :global(.cart-table__head--remove) {
+		text-align: center;
+	}
+	.cart-page :global(.cart-table__head--image) {
+		padding-left: 1.25rem;
+	}
+	.cart-page :global(.cart-table__row:not(:last-child) .cart-table__cell) {
+		border-bottom: 1px solid var(--color-border);
+	}
+	.cart-page :global(.cart-table__cell) {
+		padding: 1.125rem 1rem;
+		vertical-align: middle;
+	}
+	.cart-page :global(.cart-table__cell--image) {
+		padding-left: 1.25rem;
+		width: 5rem;
+	}
+	.cart-page :global(.cart-table__cell--product) {
+		padding-inline: 0.5rem 1rem;
+		min-width: 0;
+	}
+	.cart-page :global(.cart-table__cell--price),
+	.cart-page :global(.cart-table__cell--total) {
+		padding-inline: 0.5rem 1.25rem;
+	}
+	.cart-page :global(.cart-table__cell--qty),
+	.cart-page :global(.cart-table__cell--remove) {
+		padding-inline: 0.5rem;
+	}
+	.cart-page :global(.cart-table__cell-inner) {
+		display: flex;
+		align-items: center;
+		min-height: 2.75rem;
+	}
+	.cart-page :global(.cart-table__cell-inner--end) {
+		justify-content: flex-end;
+	}
+	.cart-page :global(.cart-table__cell-inner--center) {
+		justify-content: center;
+	}
+	.cart-page :global(.cart-table__money) {
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+		color: var(--color-ink);
+	}
+	.cart-page :global(.cart-table__money--total) {
+		font-weight: 600;
+	}
+	.cart-page :global(.cart-table__image-link) {
+		display: block;
+		line-height: 0;
+	}
+	.cart-page :global(.cart-table__image-link img) {
+		display: block;
+		width: 4rem;
+		height: 5rem;
+		object-fit: cover;
+		background: #f0eeeb;
+		border-radius: var(--radius);
+	}
+	.cart-page :global(.cart-table__name) {
+		display: block;
+		font-family: var(--font-display);
+		font-size: 1.125rem;
+		font-weight: 500;
+		line-height: 1.35;
+		color: var(--color-ink);
+		text-decoration: none;
+	}
+	.cart-page :global(.cart-table__name:hover) {
+		text-decoration: underline;
+	}
+	.cart-page :global(.cart-table__meta) {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem 1.25rem;
+		margin: 0.4rem 0 0;
+		padding: 0;
+	}
+	.cart-page :global(.cart-table__meta-item) {
+		display: inline-flex;
+		align-items: baseline;
+		gap: 0.35rem;
+		font-size: 0.8125rem;
+		line-height: 1.4;
+	}
+	.cart-page :global(.cart-table__meta-label) {
+		font-weight: 500;
+		color: var(--color-muted);
+	}
+	.cart-page :global(.cart-table__meta-label::after) {
+		content: ':';
+	}
+	.cart-page :global(.cart-table__meta-value) {
+		color: var(--color-ink);
+	}
+	.cart-page :global(.cart-qty) {
+		display: inline-flex;
+		align-items: stretch;
+		height: 2.25rem;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		background: var(--color-surface);
+		overflow: hidden;
+	}
+	.cart-page :global(.cart-qty__btn) {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.125rem;
+		height: 100%;
+		margin: 0;
+		padding: 0;
+		border: none;
+		background: var(--color-bg);
+		color: var(--color-ink);
+		cursor: pointer;
+		appearance: none;
+		-webkit-appearance: none;
+		transition: background var(--transition), color var(--transition);
+	}
+	.cart-page :global(.cart-qty__btn:hover) {
+		background: var(--color-border);
+	}
+	.cart-page :global(.cart-qty__btn:active) {
+		background: var(--color-ink);
+		color: var(--color-surface);
+	}
+	.cart-page :global(.cart-qty__btn:focus-visible) {
+		outline: 2px solid var(--color-ink);
+		outline-offset: -2px;
+		z-index: 1;
+	}
+	.cart-page :global(.cart-qty input) {
+		width: 2.5rem;
+		height: 100%;
+		margin: 0;
+		padding: 0;
+		border: none;
+		border-inline: 1px solid var(--color-border);
+		text-align: center;
+		font: inherit;
+		font-size: 0.875rem;
+		font-variant-numeric: tabular-nums;
+		font-weight: 600;
+		color: var(--color-ink);
+		background: var(--color-surface);
+		-moz-appearance: textfield;
+		cursor: default;
+	}
+	.cart-page :global(.cart-qty input::-webkit-outer-spin-button),
+	.cart-page :global(.cart-qty input::-webkit-inner-spin-button) {
+		-webkit-appearance: none;
+		margin: 0;
+	}
+	.cart-page :global(.cart-table__remove) {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		margin: 0;
+		padding: 0;
+		border: 1px solid transparent;
+		border-radius: var(--radius);
+		background: transparent;
+		color: var(--color-muted);
+		cursor: pointer;
+		appearance: none;
+		-webkit-appearance: none;
+		transition:
+			color var(--transition),
+			background var(--transition),
+			border-color var(--transition);
+	}
+	.cart-page :global(.cart-table__remove:hover) {
+		color: var(--color-sale);
+		background: rgb(179 58 58 / 6%);
+		border-color: rgb(179 58 58 / 20%);
+	}
+	.cart-page :global(.cart-table__remove:focus-visible) {
+		outline: 2px solid var(--color-ink);
+		outline-offset: 2px;
+	}
+
 	@media (max-width: 768px) {
 		.cart-page__layout {
 			grid-template-columns: 1fr;
 		}
-		.cart-item {
-			grid-template-columns: 80px 1fr;
-			grid-template-rows: auto auto;
+		.cart-page :global(.cart-table__col--price),
+		.cart-page :global(.cart-table__col--total) {
+			width: 4.25rem;
 		}
-		.cart-item__line {
-			grid-column: 2;
+		.cart-page :global(.cart-table__col--qty) {
+			width: 6.25rem;
+		}
+		.cart-page :global(.cart-table__cell) {
+			padding: 0.875rem 0.5rem;
+		}
+		.cart-page :global(.cart-table__image-link img) {
+			width: 3.25rem;
+			height: 4.0625rem;
+		}
+		.cart-page :global(.cart-table__name) {
+			font-size: 1rem;
+		}
+		.cart-page :global(.cart-qty) {
+			height: 2rem;
+		}
+		.cart-page :global(.cart-qty__btn) {
+			width: 1.875rem;
+		}
+		.cart-page :global(.cart-qty input) {
+			width: 2rem;
+			font-size: 0.8125rem;
 		}
 	}
 </style>

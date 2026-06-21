@@ -1,69 +1,66 @@
-export type RugSize = '60x90' | '80x150' | '120x170' | '160x230' | '200x300' | '240x340' | '300x400';
-
-export type MaterialKey =
-	| 'wool'
-	| 'wool-blend'
-	| 'jute'
-	| 'cotton'
-	| 'polypropylene'
-	| 'viscose'
-	| 'silk-blend'
-	| 'polyester';
-
-export type StyleKey =
-	| 'scandinavian'
-	| 'bohemian'
-	| 'natural'
-	| 'modern'
-	| 'traditional'
-	| 'outdoor'
-	| 'kids'
-	| 'luxury'
-	| 'shag'
-	| 'runner'
-	| 'minimalist'
-	| 'moroccan';
-
-export type RoomKey = 'living-room' | 'bedroom' | 'hallway' | 'dining-room' | 'patio' | 'kids-room';
-
-export type ColorKey =
-	| 'beige'
-	| 'grey'
-	| 'ivory'
-	| 'sand'
-	| 'natural'
-	| 'charcoal'
-	| 'blue'
-	| 'rust'
-	| 'navy'
-	| 'cream'
-	| 'terracotta'
-	| 'multi'
-	| 'white'
-	| 'black'
-	| 'stone'
-	| 'moss'
-	| 'brown'
-	| 'champagne'
-	| 'sage';
-
 export type BadgeKey = 'sale' | 'new' | 'bestseller';
+
+export interface ProductFeature {
+	name: string;
+	value: string;
+}
+
+/** Mirrors Womni AttributeGroup.groupType */
+export type AttributeGroupType = 'size' | 'color' | 'select';
+
+/** Mirrors Womni Attribute (+ AttributeI18n.name). */
+export interface VariantOptionValue {
+	id: string;
+	name: string;
+	color?: string | null;
+	texture?: string | null;
+	position?: number;
+}
+
+/** Mirrors Womni AttributeGroup (+ AttributeGroupI18n + nested Attributes). */
+export interface VariantOptionGroup {
+	id: string;
+	/** Stable sync key: `g{attributeGroupId}` */
+	key: string;
+	groupType: AttributeGroupType;
+	name: string;
+	position: number;
+	values: VariantOptionValue[];
+}
+
+/** Mirrors Womni ProductAttribute (+ linked Attributes via ProductAttributeCombination). */
+export interface ProductCombination {
+	/** Womni ProductAttribute.id */
+	id: string;
+	/** Womni Attribute ids from ProductAttributeCombination */
+	attributeIds: string[];
+	/** groupKey → AttributeI18n.name (display) */
+	options: Record<string, string>;
+	/** groupKey → Attribute.id (stable matching) */
+	selections: Record<string, string>;
+	price: number;
+	originalPrice?: number;
+	promotionStart?: string;
+	promotionEnd?: string;
+	reference?: string;
+	quantity: number;
+	available: boolean;
+}
 
 /** Dados do produto (locale-agnóstico; textos vêm de i18n) */
 export interface ProductBase {
 	slug: string;
 	price: number;
 	originalPrice?: number;
+	promotionStart?: string;
+	promotionEnd?: string;
 	image: string;
 	images: string[];
-	sizes: RugSize[];
-	colors: ColorKey[];
-	material: MaterialKey;
-	style: StyleKey;
-	room: RoomKey;
-	rating: number;
-	reviewCount: number;
+	features?: ProductFeature[];
+	optionGroups?: VariantOptionGroup[];
+	combinations?: ProductCombination[];
 	badge?: BadgeKey;
+	categorySlug?: string;
 }
 
 /** Produto com textos já localizados para renderização */
@@ -74,7 +71,7 @@ export interface Product extends ProductBase {
 }
 
 export interface CategoryTile {
-	id: string;
+	slug: string;
 	href: string;
 	image: string;
 	count?: number;

@@ -1,9 +1,12 @@
 ---
+import { brandLogo } from '../data/images';
 import { footerLinks } from '../data/navigation';
+import { loadSiteNavigation } from '../lib/site/navigation';
 import Newsletter from './Newsletter.astro';
 import { useTranslations } from '../i18n';
 
 const t = useTranslations(Astro.currentLocale);
+const { footerShop, defaultCatalogHref } = await loadSiteNavigation();
 ---
 
 <footer class="footer">
@@ -11,15 +14,23 @@ const t = useTranslations(Astro.currentLocale);
 		<Newsletter />
 		<div class="footer__grid">
 			<div class="footer__brand">
-				<a href="/" class="footer__logo">{t.brand}</a>
+				<a href="/" class="footer__logo">
+					<img src={brandLogo} alt={t.brand} width="200" height="44" decoding="async" />
+				</a>
 				<p>{t.footer.tagline}</p>
 			</div>
 			<div>
 				<h3>{t.footer.shop}</h3>
 				<ul>
-					{footerLinks.shop.map((link) => (
-						<li><a href={link.href}>{t.footer.links[link.key]}</a></li>
+					{footerShop.map((link) => (
+						<li><a href={link.href}>{link.label}</a></li>
 					))}
+					{defaultCatalogHref !== '/' && (
+						<>
+							<li><a href={`${defaultCatalogHref}?sort=new`}>{t.footer.links.newArrivals}</a></li>
+							<li><a href={`${defaultCatalogHref}?sale=true`}>{t.footer.links.sale}</a></li>
+						</>
+					)}
 				</ul>
 			</div>
 			<div>
@@ -66,9 +77,12 @@ const t = useTranslations(Astro.currentLocale);
 		border-top: 1px solid #333;
 	}
 	.footer__logo {
-		font-family: var(--font-display);
-		font-size: 1.5rem;
-		color: white;
+		display: inline-block;
+	}
+	.footer__logo img {
+		display: block;
+		height: 2.5rem;
+		width: auto;
 	}
 	.footer__brand p {
 		margin-top: 0.75rem;

@@ -1,3 +1,6 @@
+export const brandLogo =
+	'https://womni.fra1.cdn.digitaloceanspaces.com/buckets/casadalmeida/img/logo/logo.png';
+
 /** Stable placeholder rug/interior images (picsum seeds) for build-time optimization */
 const base = 'https://picsum.photos/seed';
 

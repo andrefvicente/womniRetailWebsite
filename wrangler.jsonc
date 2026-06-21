@@ -1,6 +1,6 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "womni-rugs",
+	"name": "womni-retail-website-ca",
 	"main": "@astrojs/cloudflare/entrypoints/server",
 	"compatibility_date": "2025-04-01",
 	"compatibility_flags": ["nodejs_compat"],
@@ -8,6 +8,9 @@
 		"binding": "ASSETS",
 		"directory": "./dist"
 	},
+	"vars": {
+		"WOMNI_SYNC_SECRET": "sync"
+    },
 	"d1_databases": [
 		{
 			"binding": "DB",
@@ -15,7 +18,6 @@
 			"database_id": "cb26b01c-bd39-4581-91d7-5d7957b87c0e"
 		}
 	],
-	// Namespace já criado pelo Cloudflare Pages (evita erro 10014 se o adapter pedir SESSION)
 	"kv_namespaces": [
 		{
 			"binding": "SESSION",

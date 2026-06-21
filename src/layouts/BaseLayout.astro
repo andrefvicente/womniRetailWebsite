@@ -1,5 +1,8 @@
 ---
+import '../styles/fonts.css';
 import '../styles/global.css';
+import dmSans400 from '@fontsource/dm-sans/files/dm-sans-latin-ext-400-normal.woff2?url';
+import cormorant400 from '@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff2?url';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import TrustBar from '../components/TrustBar.astro';
@@ -24,12 +27,9 @@ const lang = Astro.currentLocale ?? 'pt';
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="description" content={description} />
 		<meta name="generator" content={Astro.generator} />
-		<link rel="preconnect" href="https://fonts.googleapis.com" />
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		<link
-			href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@400;500;600&display=swap"
-			rel="stylesheet"
-		/>
+		<link rel="preconnect" href="https://womni.fra1.cdn.digitaloceanspaces.com" crossorigin />
+		<link rel="preload" href={dmSans400} as="font" type="font/woff2" crossorigin />
+		<link rel="preload" href={cormorant400} as="font" type="font/woff2" crossorigin />
 		<title>{fullTitle}</title>
 	</head>
 	<body>
