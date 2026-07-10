@@ -11,7 +11,7 @@ import type { BadgeKey } from '../../data/types';
 import { defaultLocale } from '../../i18n/config';
 import { mapWomniLocaleToSite, resolveSiteLocale } from '../sync/locales';
 import { parseFeatures, parseOptionGroups } from './types';
-import { ensureUniqueCategorySlugs, resolveImportedCategorySlug } from './category-slugs';
+import { ensureUniqueCategorySlugs, resolveImportedCategorySlugs } from './category-slugs';
 import { listCombinationsByProductSlugs } from './combinations';
 import { resolveProductPrice, toEuroAmount } from './prices';
 import { normalizeOptionGroups as parseSyncOptionGroups } from '../variants';
@@ -349,22 +349,32 @@ function normalizeCombinations(
 				combo.attributeIds?.length
 					? combo.attributeIds.map(String)
 					: Object.values(selections);
+			const price = toEuroAmount(combo.price);
+			const rawOriginalPrice =
+				combo.originalPrice != null ? toEuroAmount(combo.originalPrice) : null;
 
 			return {
 				id: combo.id.trim(),
 				attributeIds,
 				options: combo.options ?? {},
 				selections,
-				price: toEuroAmount(combo.price),
+				price,
 				originalPrice:
-					combo.originalPrice != null && combo.originalPrice > combo.price
-						? toEuroAmount(combo.originalPrice)
+					rawOriginalPrice != null && rawOriginalPrice > price
+						? rawOriginalPrice
 						: null,
 				promotionStart: combo.promotionStart?.trim() || null,
 				promotionEnd: combo.promotionEnd?.trim() || null,
 				reference: combo.reference?.trim() || null,
 				quantity: combo.quantity ?? 0,
 				available: combo.available !== false,
+				image: combo.image?.trim() || null,
+				images:
+					combo.images?.length
+						? combo.images.filter((url) => typeof url === 'string' && url.trim())
+						: combo.image?.trim()
+							? [combo.image.trim()]
+							: [],
 			};
 		});
 }
@@ -438,8 +448,8 @@ async function importProductCombinations(
 		db
 		.prepare(
 			`INSERT INTO product_combinations (
-					product_slug, external_id, options, attribute_ids, selections, size, color, price, original_price, promotion_start, promotion_end, reference, quantity, available, updated_at
-				) VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+					product_slug, external_id, options, attribute_ids, selections, size, color, price, original_price, promotion_start, promotion_end, reference, quantity, available, image, images, updated_at
+				) VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
 		)
 		.bind(
 			productSlug,
@@ -454,7 +464,36 @@ async function importProductCombinations(
 			combo.reference,
 			combo.quantity ?? 0,
 			combo.available === false ? 0 : 1,
+			combo.image,
+			JSON.stringify(combo.images ?? []),
 		),
+	);
+
+	await db.batch(statements);
+}
+
+async function importProductCategories(
+	db: D1Database,
+	productSlug: string,
+	categorySlugs: string[],
+): Promise<void> {
+	await db
+		.prepare(`DELETE FROM product_categories WHERE product_slug = ?`)
+		.bind(productSlug)
+		.run();
+
+	if (!categorySlugs.length) {
+		return;
+	}
+
+	const statements = categorySlugs.map((categorySlug) =>
+		db
+			.prepare(
+				`INSERT INTO product_categories (product_slug, category_slug)
+				VALUES (?, ?)
+				ON CONFLICT(product_slug, category_slug) DO NOTHING`,
+			)
+			.bind(productSlug, categorySlug),
 	);
 
 	await db.batch(statements);
@@ -470,12 +509,15 @@ function normalizeProduct(
 		translations.find((t) => t.locale === defaultLocale) ?? translations[0];
 	const combinations = normalizeCombinations(product.combinations);
 	const optionGroups = resolveImportOptionGroups(product, combinations);
+	const basePrice = toEuroAmount(product.price);
 	const { price, originalPrice: resolvedOriginalPrice, promotionStart: comboPromotionStart, promotionEnd: comboPromotionEnd } =
-		resolveProductPrice(product.price, combinations);
+		resolveProductPrice(basePrice, combinations);
+	const productOriginalPrice =
+		product.originalPrice != null ? toEuroAmount(product.originalPrice) : null;
 	const originalPrice =
 		resolvedOriginalPrice ??
-		(product.originalPrice != null && product.originalPrice > price
-			? toEuroAmount(product.originalPrice)
+		(productOriginalPrice != null && productOriginalPrice > price
+			? productOriginalPrice
 			: null);
 	const promotionStart =
 		comboPromotionStart ?? product.promotionStart?.trim() ?? null;
@@ -487,13 +529,12 @@ function normalizeProduct(
 				? ('sale' as BadgeKey)
 				: (product.badge ?? null);
 
+	const categorySlugs = resolveImportedCategorySlugs(product, { slugById: categorySlugById });
+
 	return {
 		slug: product.slug,
-		categorySlug: resolveImportedCategorySlug(
-			product.categorySlug,
-			product.categoryId,
-			{ slugById: categorySlugById },
-		),
+		categorySlug: categorySlugs[0] ?? null,
+		categorySlugs,
 		price,
 		originalPrice,
 		promotionStart,
@@ -639,6 +680,7 @@ export async function importCatalog(db: D1Database, payload: CatalogImportPayloa
 	for (const raw of incoming) {
 		const product = normalizeProduct(raw, categorySlugById);
 		await importProductCombinations(db, product.slug, product.combinations);
+		await importProductCategories(db, product.slug, product.categorySlugs);
 	}
 
 	return { upserted, categoriesUpserted, removed: payload.replaceProducts !== false };
@@ -703,6 +745,26 @@ async function listCategoriesForCatalog(
 	}));
 }
 
+async function listProductCategorySlugs(
+	db: D1Database,
+): Promise<Map<string, string[]>> {
+	const result = await db
+		.prepare(
+			`SELECT product_slug, category_slug
+			FROM product_categories
+			ORDER BY product_slug ASC, category_slug ASC`,
+		)
+		.all<{ product_slug: string; category_slug: string }>();
+
+	const byProduct = new Map<string, string[]>();
+	for (const row of result.results ?? []) {
+		const list = byProduct.get(row.product_slug) ?? [];
+		list.push(row.category_slug);
+		byProduct.set(row.product_slug, list);
+	}
+	return byProduct;
+}
+
 export async function exportCatalog(
 	db: D1Database,
 	catalogId = '1',
@@ -723,6 +785,7 @@ export async function exportCatalog(
 		.all<ExportProductRow>();
 	const productSlugs = (productRows.results ?? []).map((row) => row.slug);
 	const combinationsBySlug = await listCombinationsByProductSlugs(db, productSlugs);
+	const categorySlugsByProduct = await listProductCategorySlugs(db);
 
 	const translationRows = await db
 		.prepare(`SELECT * FROM product_translations ORDER BY slug ASC, locale ASC`)
@@ -758,6 +821,9 @@ export async function exportCatalog(
 			const combinations = combinationsBySlug.get(row.slug) ?? [];
 			const optionGroups = parseOptionGroups(row.option_groups);
 			const features = parseFeatures(row.features);
+			const categorySlugs =
+				categorySlugsByProduct.get(row.slug) ??
+				(row.category_slug ? [row.category_slug] : defaultCategorySlug ? [defaultCategorySlug] : []);
 
 			return {
 				slug: row.slug,
@@ -787,10 +853,13 @@ export async function exportCatalog(
 							reference: combo.reference ?? null,
 							quantity: combo.quantity,
 							available: combo.available,
+							image: combo.image ?? null,
+							images: combo.images?.length ? combo.images : undefined,
 						}))
 					: undefined,
 				badge: row.badge ?? undefined,
-				categorySlug: row.category_slug ?? defaultCategorySlug ?? undefined,
+				categorySlug: categorySlugs[0] ?? defaultCategorySlug ?? undefined,
+				categorySlugs: categorySlugs.length ? categorySlugs : undefined,
 				available: true,
 			};
 		}),

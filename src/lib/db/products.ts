@@ -1,7 +1,7 @@
 import type { ProductFilters, ProductRowWithTranslation, ProductSort } from './types';
 import { rowToProduct, rowToProductBase } from './types';
 import { enrichProductCombinations, listCombinationsByProductSlugs, listProductCombinations } from './combinations';
-import { resolveProductPrice } from './prices';
+import { combinationForDisplay, fromEuroAmount, resolveProductPrice } from './prices';
 import type { Product } from '../../data/types';
 import { defaultLocale } from '../../i18n/config';
 
@@ -24,7 +24,11 @@ function buildWhere(filters?: ProductFilters): { sql: string; binds: (string | n
 	}
 	if (filters?.categorySlugs?.length) {
 		clauses.push(
-			`p.category_slug IN (${filters.categorySlugs.map(() => '?').join(', ')})`,
+			`EXISTS (
+				SELECT 1 FROM product_categories pc
+				WHERE pc.product_slug = p.slug
+					AND pc.category_slug IN (${filters.categorySlugs.map(() => '?').join(', ')})
+			)`,
 		);
 		binds.push(...filters.categorySlugs);
 	}
@@ -89,10 +93,17 @@ export async function listLocalizedProducts(
 		return {
 			...rowToProduct({
 				...row,
-				price,
-				original_price: originalPrice ?? row.original_price,
+				price: fromEuroAmount(price),
+				original_price:
+					originalPrice != null
+						? fromEuroAmount(originalPrice)
+						: row.original_price != null
+							? fromEuroAmount(row.original_price)
+							: null,
 			}),
-			combinations: enriched?.length ? enriched : undefined,
+			combinations: enriched?.length
+				? enriched.map(combinationForDisplay)
+				: undefined,
 		};
 	});
 }
@@ -132,10 +143,15 @@ export async function getLocalizedProductFromDb(
 	return {
 		...rowToProduct({
 			...row,
-			price,
-			original_price: originalPrice ?? row.original_price,
+			price: fromEuroAmount(price),
+			original_price:
+				originalPrice != null
+					? fromEuroAmount(originalPrice)
+					: row.original_price != null
+						? fromEuroAmount(row.original_price)
+						: null,
 		}),
-		combinations: enriched.length ? enriched : undefined,
+		combinations: enriched.length ? enriched.map(combinationForDisplay) : undefined,
 	};
 }
 

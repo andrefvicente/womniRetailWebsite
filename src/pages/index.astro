@@ -1,7 +1,7 @@
 ---
 export const prerender = false;
 
-import { Image } from 'astro:assets';
+import RemoteImage from '../components/RemoteImage.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { rugImages } from '../data/images';
 import ProductCard from '../components/ProductCard.astro';
@@ -9,7 +9,7 @@ import { loadSiteNavigation } from '../lib/site/navigation';
 import { getLocalizedProducts, useTranslations } from '../i18n';
 
 const t = useTranslations(Astro.currentLocale);
-const { categoryTiles, defaultCatalogHref } = await loadSiteNavigation();
+const { defaultCatalogHref } = await loadSiteNavigation();
 const localized = await getLocalizedProducts(Astro.currentLocale);
 const featured = localized.filter((p) => p.badge === 'bestseller' || p.badge === 'sale').slice(0, 4);
 const newArrivals = localized.filter((p) => p.badge === 'new').concat(localized).slice(0, 4);
@@ -28,29 +28,14 @@ const newArrivals = localized.filter((p) => p.badge === 'new').concat(localized)
 				</div>
 			</div>
 			<div class="hero__visual">
-				<Image src={rugImages.hero} alt={t.home.heroImageAlt} width={700} height={875} loading="eager" />
-			</div>
-		</div>
-	</section>
-
-	<section class="categories">
-		<div class="container">
-			<header class="section-header">
-				<h2>{t.home.shopByRoom}</h2>
-				<a href={defaultCatalogHref}>{t.home.viewAll}</a>
-			</header>
-			<div class="categories__grid">
-				{categoryTiles.map((cat) => (
-					<a href={cat.href} class="category-tile">
-						<Image src={cat.image} alt="" width={400} height={300} loading="lazy" />
-						<span class="category-tile__overlay">
-							<span class="category-tile__title">{cat.name}</span>
-							{cat.count > 0 && (
-								<span class="category-tile__count">{t.home.rugCount(cat.count)}</span>
-							)}
-						</span>
-					</a>
-				))}
+				<RemoteImage
+					src={rugImages.hero}
+					alt={t.home.heroImageAlt}
+					width={700}
+					height={875}
+					loading="eager"
+					fetchpriority="high"
+				/>
 			</div>
 		</div>
 	</section>
@@ -162,46 +147,8 @@ const newArrivals = localized.filter((p) => p.badge === 'new').concat(localized)
 		color: var(--color-muted);
 		text-decoration: underline;
 	}
-	.categories,
 	.featured {
 		padding: 4rem 0;
-	}
-	.categories__grid {
-		display: grid;
-		grid-template-columns: repeat(4, 1fr);
-		gap: 1rem;
-	}
-	.category-tile {
-		position: relative;
-		aspect-ratio: 4 / 3;
-		overflow: hidden;
-	}
-	.category-tile img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		transition: transform 0.4s ease;
-	}
-	.category-tile:hover img {
-		transform: scale(1.05);
-	}
-	.category-tile__overlay {
-		position: absolute;
-		inset: 0;
-		display: flex;
-		flex-direction: column;
-		justify-content: flex-end;
-		padding: 1.25rem;
-		background: linear-gradient(transparent 40%, rgb(0 0 0 / 55%));
-		color: white;
-	}
-	.category-tile__title {
-		font-family: var(--font-display);
-		font-size: 1.5rem;
-	}
-	.category-tile__count {
-		font-size: 0.8125rem;
-		opacity: 0.9;
 	}
 	.product-grid {
 		display: grid;
@@ -249,13 +196,11 @@ const newArrivals = localized.filter((p) => p.badge === 'new').concat(localized)
 		.promo__inner {
 			grid-template-columns: 1fr;
 		}
-		.categories__grid,
 		.product-grid {
 			grid-template-columns: repeat(2, 1fr);
 		}
 	}
 	@media (max-width: 480px) {
-		.categories__grid,
 		.product-grid {
 			grid-template-columns: 1fr;
 		}

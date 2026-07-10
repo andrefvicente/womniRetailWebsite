@@ -1,6 +1,7 @@
 import { getDatabase } from '../db/products';
+import { upsertSiteSettings } from '../db/site-settings';
 import { exportCatalog, importCatalog, importCategories } from '../db/sync';
-import type { CatalogImportPayload, CategoryImportPayload } from './types';
+import type { CatalogImportPayload, CategoryImportPayload, SiteConfigImportPayload } from './types';
 import { verifySyncAuth } from './auth';
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
@@ -93,6 +94,36 @@ export async function handleCatalogImport(request: Request): Promise<Response> {
 		const db = getDatabase();
 		const result = await importCatalog(db, payload);
 		return new Response(JSON.stringify({ ok: true, ...result }), {
+			status: 200,
+			headers: jsonHeaders,
+		});
+	} catch (error) {
+		return serverError(error);
+	}
+}
+
+/** POST /api/sync/site-config — upsert appearance settings into D1. */
+export async function handleSiteConfigImport(request: Request): Promise<Response> {
+	if (!verifySyncAuth(request)) {
+		return unauthorized();
+	}
+
+	let payload: SiteConfigImportPayload;
+	try {
+		payload = (await request.json()) as SiteConfigImportPayload;
+	} catch {
+		return badRequest('Invalid JSON body');
+	}
+
+	const appearance = payload.appearance;
+	if (!appearance || typeof appearance !== 'object' || Array.isArray(appearance)) {
+		return badRequest('appearance object is required');
+	}
+
+	try {
+		const db = getDatabase();
+		const updated = await upsertSiteSettings(db, appearance);
+		return new Response(JSON.stringify({ ok: true, updated }), {
 			status: 200,
 			headers: jsonHeaders,
 		});

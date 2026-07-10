@@ -1,18 +1,28 @@
 ---
-import { useTranslations } from '../i18n';
+import type { NewsletterLocaleCopy } from '../lib/site/newsletter';
 
-const t = useTranslations(Astro.currentLocale);
+interface Props {
+	copy: NewsletterLocaleCopy;
+}
+
+const { copy } = Astro.props;
 ---
 
 <section class="newsletter">
 	<div>
-		<h2>{t.newsletter.title}</h2>
-		<p>{t.newsletter.description}</p>
+		<h2>{copy.title}</h2>
+		<p>{copy.description}</p>
 	</div>
 	<form class="newsletter__form" action="#" method="post">
-		<label class="sr-only" for="newsletter-email">{t.newsletter.emailLabel}</label>
-		<input id="newsletter-email" type="email" name="email" placeholder={t.newsletter.placeholder} required />
-		<button type="submit" class="btn">{t.newsletter.subscribe}</button>
+		<label class="sr-only" for="newsletter-email">{copy.emailLabel}</label>
+		<input
+			id="newsletter-email"
+			type="email"
+			name="email"
+			placeholder={copy.placeholder}
+			required
+		/>
+		<button type="submit" class="btn">{copy.subscribe}</button>
 	</form>
 </section>
 

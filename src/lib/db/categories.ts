@@ -216,8 +216,8 @@ export async function countProductsByCategorySlug(
 	const placeholders = slugs.map(() => '?').join(', ');
 	const result = await db
 		.prepare(
-			`SELECT category_slug, COUNT(*) AS total
-			FROM products
+			`SELECT category_slug, COUNT(DISTINCT product_slug) AS total
+			FROM product_categories
 			WHERE category_slug IN (${placeholders})
 			GROUP BY category_slug`,
 		)

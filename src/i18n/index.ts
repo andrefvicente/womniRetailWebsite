@@ -48,7 +48,8 @@ export function formatPrice(amount: number, locale?: string): string {
 	return new Intl.NumberFormat(intlLocale, {
 		style: 'currency',
 		currency: 'EUR',
-		maximumFractionDigits: 0,
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2,
 	}).format(amount);
 }
 

@@ -45,6 +45,10 @@ export interface ProductCombination {
 	reference?: string;
 	quantity: number;
 	available: boolean;
+	/** Primary image from Womni ProductAttributeImage */
+	image?: string;
+	/** All images linked to this combination */
+	images?: string[];
 }
 
 /** Dados do produto (locale-agnóstico; textos vêm de i18n) */

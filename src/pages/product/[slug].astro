@@ -1,7 +1,7 @@
 ---
 export const prerender = false;
 
-import { Image } from 'astro:assets';
+import RemoteImage from '../../components/RemoteImage.astro';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import ProductCard from '../../components/ProductCard.astro';
@@ -9,10 +9,12 @@ import { categoryHref as buildCategoryHref, getCategoryBySlug } from '../../lib/
 import { buildOptionGroupsFromCombinations } from '../../lib/db/combinations';
 import { getDatabase, hasDatabase } from '../../lib/db/bindings';
 import { loadSiteNavigation } from '../../lib/site/navigation';
+import { loadSiteFeatures } from '../../lib/site/features';
 import { formatPrice, getLocalizedProduct, getLocalizedProducts, useTranslations } from '../../i18n';
 
 const t = useTranslations(Astro.currentLocale);
 const { defaultCatalogHref } = await loadSiteNavigation();
+const { catalogMode } = await loadSiteFeatures();
 const slug = Astro.params.slug;
 
 if (!slug) {
@@ -57,6 +59,20 @@ const optionGroups =
 			? buildOptionGroupsFromCombinations(productCombinations)
 			: [];
 const productFeatures = product.features ?? [];
+
+function imagesForCombination(combo: (typeof productCombinations)[number] | null | undefined) {
+	if (combo?.images?.length) {
+		return combo.images;
+	}
+	if (combo?.image) {
+		return [combo.image];
+	}
+	return product.images;
+}
+
+const initialCombination =
+	productCombinations.find((combo) => combo.available) ?? productCombinations[0] ?? null;
+const displayImages = imagesForCombination(initialCombination);
 ---
 
 <BaseLayout title={product.name} description={product.description}>
@@ -70,20 +86,20 @@ const productFeatures = product.features ?? [];
 		/>
 
 		<div class="pdp__layout">
-			<div class="pdp__gallery">
+			<div class="pdp__gallery" data-pdp-gallery>
 				<div class="pdp__main-image">
-					<Image src={product.images[0]} alt={product.name} width={800} height={1000} id="main-image" />
+					<RemoteImage src={displayImages[0]} alt={product.name} width={800} height={1000} id="main-image" />
 				</div>
-				{product.images.length > 1 && (
-					<div class="pdp__thumbs">
-						{product.images.map((img, i) => (
+				{displayImages.length > 1 && (
+					<div class="pdp__thumbs" data-pdp-thumbs>
+						{displayImages.map((img, i) => (
 							<button
 								type="button"
 								class:list={['pdp__thumb', { active: i === 0 }]}
 								data-thumb={img}
 								aria-label={`${t.catalog.title} ${i + 1}`}
 							>
-								<Image src={img} alt="" width={120} height={150} />
+								<RemoteImage src={img} alt="" width={120} height={150} />
 							</button>
 						))}
 					</div>
@@ -101,53 +117,60 @@ const productFeatures = product.features ?? [];
 					)}
 				</div>
 
-				<form
-					class="pdp__form"
-					data-add-to-cart
-					data-slug={product.slug}
-					data-name={product.name}
-					data-price={product.price}
-					data-image={product.image}
-					data-added-msg={t.product.addedToCart}
-					data-has-combinations={productCombinations.length > 0 ? 'true' : 'false'}
-				>
-					{optionGroups.map((group, groupIndex) => (
-						<fieldset class="pdp__fieldset" data-option-fieldset={group.key}>
-							<legend>{group.name}</legend>
-							<div class="pdp__options" class:list={[{ 'pdp__options--color': group.groupType === 'color' }]}>
-								{group.values.map((value, valueIndex) => (
-									<label class="pdp__option" class:list={[{ 'pdp__option--color': group.groupType === 'color' }]}>
-										<input
-											type="radio"
-											name={`opt-${group.key}`}
-											value={value.id}
-											data-option-group={group.key}
-											data-option-label={value.name}
-											checked={valueIndex === 0}
-											required
-										/>
-										{group.groupType === 'color' && value.color ? (
-											<span
-												class="pdp__color-swatch"
-												style={`background:${value.color}`}
-												title={value.name}
+				{(optionGroups.length > 0 || !catalogMode) && (
+					<div
+						class="pdp__form"
+						data-pdp-form
+						data-slug={product.slug}
+						data-name={product.name}
+						data-price={product.price}
+						data-image={displayImages[0]}
+						data-added-msg={t.product.addedToCart}
+						data-has-combinations={productCombinations.length > 0 ? 'true' : 'false'}
+					>
+						{optionGroups.map((group) => (
+							<fieldset class="pdp__fieldset" data-option-fieldset={group.key}>
+								<legend>{group.name}</legend>
+								<div class="pdp__options" class:list={[{ 'pdp__options--color': group.groupType === 'color' }]}>
+									{group.values.map((value, valueIndex) => (
+										<label class="pdp__option" class:list={[{ 'pdp__option--color': group.groupType === 'color' }]}>
+											<input
+												type="radio"
+												name={`opt-${group.key}`}
+												value={value.id}
+												data-option-group={group.key}
+												data-option-label={value.name}
+												checked={valueIndex === 0}
 											/>
-										) : (
-											<span>{value.name}</span>
-										)}
-									</label>
-								))}
-							</div>
-						</fieldset>
-					))}
+											{group.groupType === 'color' && value.color ? (
+												<span
+													class="pdp__color-swatch"
+													style={`background:${value.color}`}
+													title={value.name}
+												/>
+											) : (
+												<span>{value.name}</span>
+											)}
+										</label>
+									))}
+								</div>
+							</fieldset>
+						))}
 
-					<div class="pdp__qty">
-						<label for="qty">{t.product.quantity}</label>
-						<input type="number" id="qty" name="qty" min="1" max="10" value="1" />
+						{!catalogMode && (
+							<>
+								<div class="pdp__qty">
+									<label for="qty">{t.product.quantity}</label>
+									<input type="number" id="qty" name="qty" min="1" max="10" value="1" />
+								</div>
+
+								<button type="button" class="btn btn--accent pdp__add" data-add-to-cart-btn>
+									{t.product.addToCart}
+								</button>
+							</>
+						)}
 					</div>
-
-					<button type="submit" class="btn btn--accent pdp__add">{t.product.addToCart}</button>
-				</form>
+				)}
 
 				<ul class="pdp__trust">
 					{t.product.trust.map((line) => (
@@ -194,21 +217,136 @@ const productFeatures = product.features ?? [];
 	</div>
 </BaseLayout>
 
-<script define:vars={{ productCombinations, productOptionGroups: optionGroups, priceLocale: Astro.currentLocale ?? 'pt' }}>
+<script define:vars={{ productCombinations, productOptionGroups: optionGroups, productImages: product.images, thumbAltPrefix: t.catalog.title, priceLocale: Astro.currentLocale ?? 'pt' }}>
 	const combinations = productCombinations ?? [];
 	const optionGroups = productOptionGroups ?? [];
+	const fallbackImages = productImages ?? [];
 	const hasCombinations = combinations.length > 0;
-	const form = document.querySelector('[data-add-to-cart]');
+	const pdpRoot = document.querySelector('[data-pdp-form]');
+	const pdpGallery = document.querySelector('[data-pdp-gallery]');
+	const pdpThumbs = document.querySelector('[data-pdp-thumbs]');
+	const addToCartBtn = document.querySelector('[data-add-to-cart-btn]');
 	const priceCurrent = document.querySelector('[data-price-current]');
 	const priceWas = document.querySelector('[data-price-was]');
+
+	function imagesForCombination(combo) {
+		if (combo?.images?.length) {
+			return combo.images;
+		}
+		if (combo?.image) {
+			return [combo.image];
+		}
+		return fallbackImages;
+	}
+
+	function bindThumbButtons() {
+		document.querySelectorAll('[data-thumb]').forEach((btn) => {
+			btn.addEventListener('click', () => {
+				const src = btn.getAttribute('data-thumb');
+				const main = document.getElementById('main-image');
+				if (main && src) {
+					main.src = src;
+				}
+				document.querySelectorAll('.pdp__thumb').forEach((thumb) => thumb.classList.remove('active'));
+				btn.classList.add('active');
+			});
+		});
+	}
+
+	function renderGallery(images) {
+		const galleryImages = images.length ? images : fallbackImages;
+		const main = document.getElementById('main-image');
+		if (main && galleryImages[0]) {
+			main.src = galleryImages[0];
+		}
+
+		if (!pdpGallery) {
+			return;
+		}
+
+		let thumbs = pdpThumbs;
+		if (galleryImages.length > 1) {
+			if (!thumbs) {
+				thumbs = document.createElement('div');
+				thumbs.className = 'pdp__thumbs';
+				thumbs.dataset.pdpThumbs = '';
+				pdpGallery.appendChild(thumbs);
+			}
+			thumbs.innerHTML = galleryImages
+				.map(
+					(img, index) => `
+						<button
+							type="button"
+							class="pdp__thumb${index === 0 ? ' active' : ''}"
+							data-thumb="${img}"
+							aria-label="${thumbAltPrefix} ${index + 1}"
+						>
+							<img src="${img}" alt="" width="120" height="150" loading="lazy" decoding="async" />
+						</button>
+					`,
+				)
+				.join('');
+			thumbs.hidden = false;
+			bindThumbButtons();
+			return;
+		}
+
+		if (thumbs) {
+			thumbs.innerHTML = '';
+			thumbs.hidden = true;
+		}
+	}
+
+	function updateImageDisplay() {
+		const selected = selectedOptions();
+		const combo = findCombinationForDisplay(selected);
+		const images = imagesForCombination(combo);
+		renderGallery(images);
+
+		if (pdpRoot && images[0]) {
+			pdpRoot.dataset.image = images[0];
+		}
+	}
 
 	function formatPrice(amount) {
 		const intlLocale = priceLocale === 'pt' ? 'pt-PT' : priceLocale;
 		return new Intl.NumberFormat(intlLocale, {
 			style: 'currency',
 			currency: 'EUR',
-			maximumFractionDigits: 0,
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2,
 		}).format(amount);
+	}
+
+	function comboSelections(combo) {
+		if (combo.selections && Object.keys(combo.selections).length) {
+			return combo.selections;
+		}
+
+		const resolved = {};
+		for (const [groupKey, label] of Object.entries(combo.options ?? {})) {
+			const group = optionGroups.find((entry) => entry.key === groupKey);
+			const value = group?.values.find((entry) => entry.name === label);
+			if (value) {
+				resolved[groupKey] = value.id;
+			}
+		}
+		return resolved;
+	}
+
+	function comboHasValue(combo, groupKey, attributeId) {
+		const selections = comboSelections(combo);
+		if (selections[groupKey] === attributeId) {
+			return true;
+		}
+
+		const group = optionGroups.find((entry) => entry.key === groupKey);
+		const value = group?.values.find((entry) => entry.id === attributeId);
+		if (!value) {
+			return false;
+		}
+
+		return combo.options?.[groupKey] === value.name;
 	}
 
 	function optionsMatch(comboOptions, comboSelections, selected) {
@@ -219,7 +357,7 @@ const productFeatures = product.features ?? [];
 		}
 		return Object.entries(selected).every(
 			([key, attributeId]) => {
-				const input = form?.querySelector(`[name="opt-${key}"][value="${attributeId}"]`);
+				const input = pdpRoot?.querySelector(`[name="opt-${key}"][value="${attributeId}"]`);
 				const label = input?.dataset?.optionLabel;
 				return label != null && comboOptions[key] === label;
 			},
@@ -229,7 +367,7 @@ const productFeatures = product.features ?? [];
 	function selectedOptions() {
 		const selected = {};
 		for (const group of optionGroups) {
-			const input = form?.querySelector(`[name="opt-${group.key}"]:checked`);
+			const input = pdpRoot?.querySelector(`[name="opt-${group.key}"]:checked`);
 			if (input?.value) {
 				selected[group.key] = input.value;
 			}
@@ -240,7 +378,7 @@ const productFeatures = product.features ?? [];
 	function selectedOptionLabels() {
 		const labels = {};
 		for (const group of optionGroups) {
-			const input = form?.querySelector(`[name="opt-${group.key}"]:checked`);
+			const input = pdpRoot?.querySelector(`[name="opt-${group.key}"]:checked`);
 			if (input?.dataset?.optionLabel) {
 				labels[group.key] = input.dataset.optionLabel;
 			}
@@ -266,26 +404,75 @@ const productFeatures = product.features ?? [];
 		return matchCombination(selected);
 	}
 
-	function combinationExistsForValue(groupKey, attributeId, selected) {
+	function combinationExistsForValue(groupKey, attributeId) {
 		if (!hasCombinations) {
 			return true;
 		}
 
-		const trial = { ...selected, [groupKey]: attributeId };
-		return Boolean(findCombinationForDisplay(trial));
+		return combinations.some((combo) => comboHasValue(combo, groupKey, attributeId));
+	}
+
+	function ensureValidSelection(changedGroupKey) {
+		if (!pdpRoot || !hasCombinations || !changedGroupKey) {
+			return;
+		}
+
+		const selected = selectedOptions();
+		if (findCombinationForDisplay(selected)) {
+			return;
+		}
+
+		const changedValue = selected[changedGroupKey];
+		if (!changedValue) {
+			return;
+		}
+
+		const candidates = combinations.filter((combo) =>
+			comboHasValue(combo, changedGroupKey, changedValue),
+		);
+		if (!candidates.length) {
+			return;
+		}
+
+		const best = candidates
+			.map((combo) => {
+				const selections = comboSelections(combo);
+				let score = 0;
+				for (const group of optionGroups) {
+					if (group.key === changedGroupKey) {
+						continue;
+					}
+					if (selected[group.key] && selections[group.key] === selected[group.key]) {
+						score += 1;
+					}
+				}
+				return { combo, selections, score };
+			})
+			.sort((a, b) => b.score - a.score)[0];
+
+		for (const group of optionGroups) {
+			const attributeId = best.selections[group.key];
+			if (!attributeId) {
+				continue;
+			}
+			const input = pdpRoot.querySelector(`[name="opt-${group.key}"][value="${attributeId}"]`);
+			if (input instanceof HTMLInputElement) {
+				input.checked = true;
+			}
+		}
 	}
 
 	function refreshOptionStates() {
-		if (!form || !hasCombinations || !optionGroups.length) {
+		if (!pdpRoot || !hasCombinations || !optionGroups.length) {
 			return;
 		}
 
 		const selected = selectedOptions();
 
 		for (const group of optionGroups) {
-			form.querySelectorAll(`[name="opt-${group.key}"]`).forEach((input) => {
+			pdpRoot.querySelectorAll(`[name="opt-${group.key}"]`).forEach((input) => {
 				const label = input.closest('label');
-				const exists = combinationExistsForValue(group.key, input.value, selected);
+				const exists = combinationExistsForValue(group.key, input.value);
 				const combo = findCombinationForDisplay({
 					...selected,
 					[group.key]: input.value,
@@ -298,7 +485,7 @@ const productFeatures = product.features ?? [];
 	}
 
 	function updatePriceDisplay() {
-		if (!form) {
+		if (!pdpRoot) {
 			return;
 		}
 
@@ -306,7 +493,7 @@ const productFeatures = product.features ?? [];
 		const combo = findCombinationForDisplay(selected);
 
 		if (combo) {
-			form.dataset.price = String(combo.price);
+			pdpRoot.dataset.price = String(combo.price);
 			if (priceCurrent) {
 				priceCurrent.textContent = formatPrice(combo.price);
 			}
@@ -318,7 +505,7 @@ const productFeatures = product.features ?? [];
 					priceWas.hidden = true;
 				}
 			}
-			const addBtn = form.querySelector('.pdp__add');
+			const addBtn = pdpRoot.querySelector('.pdp__add');
 			if (addBtn) {
 				addBtn.disabled = false;
 				addBtn.dataset.outOfStock = combo.available ? 'false' : 'true';
@@ -326,7 +513,7 @@ const productFeatures = product.features ?? [];
 			return;
 		}
 
-		const addBtn = form.querySelector('.pdp__add');
+		const addBtn = pdpRoot.querySelector('.pdp__add');
 		if (addBtn) {
 			const allSelected = !optionGroups.length || optionGroups.every((group) => selected[group.key]);
 			addBtn.disabled = !allSelected;
@@ -336,7 +523,7 @@ const productFeatures = product.features ?? [];
 		if (hasCombinations) {
 			const fallback = combinations.find((combo) => combo.available) ?? combinations[0];
 			if (fallback) {
-				form.dataset.price = String(fallback.price);
+				pdpRoot.dataset.price = String(fallback.price);
 				if (priceCurrent) {
 					priceCurrent.textContent = formatPrice(fallback.price);
 				}
@@ -347,32 +534,34 @@ const productFeatures = product.features ?? [];
 	function syncSelection() {
 		refreshOptionStates();
 		updatePriceDisplay();
+		updateImageDisplay();
 	}
 
-	document.querySelectorAll('[data-thumb]').forEach((btn) => {
-		btn.addEventListener('click', () => {
-			const src = btn.getAttribute('data-thumb');
-			const main = document.getElementById('main-image');
-			if (main && src) main.src = src;
-			document.querySelectorAll('.pdp__thumb').forEach((t) => t.classList.remove('active'));
-			btn.classList.add('active');
+	bindThumbButtons();
+
+	if (pdpRoot) {
+		pdpRoot.addEventListener('change', (event) => {
+			const target = event.target;
+			const groupKey =
+				target instanceof HTMLInputElement ? target.dataset.optionGroup : undefined;
+			if (groupKey) {
+				ensureValidSelection(groupKey);
+			}
+			syncSelection();
 		});
-	});
+		syncSelection();
+	}
 
-	document.querySelector('[data-add-to-cart]')?.addEventListener('change', syncSelection);
-	syncSelection();
-
-	document.querySelector('[data-add-to-cart]')?.addEventListener('submit', (e) => {
-		e.preventDefault();
-		const form = e.target;
-		const slug = form.dataset.slug;
-		const name = form.dataset.name;
-		const image = form.dataset.image;
-		const addedMsg = form.dataset.addedMsg;
-		const qty = Number(form.querySelector('[name="qty"]')?.value || 1);
+	if (addToCartBtn && pdpRoot) {
+		addToCartBtn.addEventListener('click', () => {
+		const slug = pdpRoot.dataset.slug;
+		const name = pdpRoot.dataset.name;
+		const image = pdpRoot.dataset.image;
+		const addedMsg = pdpRoot.dataset.addedMsg;
+		const qty = Number(pdpRoot.querySelector('[name="qty"]')?.value || 1);
 		const selected = selectedOptions();
 
-		let linePrice = Number(form.dataset.price);
+		let linePrice = Number(pdpRoot.dataset.price);
 		let combinationId = null;
 
 		if (hasCombinations) {
@@ -416,7 +605,7 @@ const productFeatures = product.features ?? [];
 		localStorage.setItem('womni-cart', JSON.stringify(cart));
 		window.dispatchEvent(new Event('cart-updated'));
 
-		const btn = form.querySelector('.pdp__add');
+		const btn = addToCartBtn;
 		if (btn && addedMsg) {
 			const original = btn.textContent;
 			btn.textContent = addedMsg;
@@ -425,6 +614,7 @@ const productFeatures = product.features ?? [];
 			}, 2000);
 		}
 	});
+	}
 </script>
 
 <style>

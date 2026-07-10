@@ -69,9 +69,6 @@ const pt: UiDictionary = {
 		shopAll: 'Ver todos os tapetes',
 		viewSale: 'Ver promoções',
 		heroImageAlt: 'Sala de estar com tapete neutro em lã',
-		shopByRoom: 'Comprar por divisão',
-		viewAll: 'Ver tudo →',
-		rugCount: (n) => `${n} tapetes`,
 		bestSellersSale: 'Mais vendidos e promoções',
 		seeMore: 'Ver mais →',
 		sizeGuideTitle: 'Não sabe qual o tamanho?',
@@ -107,7 +104,13 @@ const pt: UiDictionary = {
 		style: 'Estilo',
 		color: 'Cor',
 		maxPrice: 'Preço máximo',
-		priceUpTo: (max) => `Até ${max} €`,
+		priceUpTo: (max) =>
+			`Até ${new Intl.NumberFormat('pt-PT', {
+				style: 'currency',
+				currency: 'EUR',
+				minimumFractionDigits: 2,
+				maximumFractionDigits: 2,
+			}).format(max)}`,
 		empty: 'Nenhum tapete corresponde aos filtros. Tente ajustar a seleção.',
 	},
 	product: {
@@ -210,12 +213,6 @@ const pt: UiDictionary = {
 		brown: 'Castanho',
 		champagne: 'Champanhe',
 		sage: 'Sálvia',
-	},
-	categoryTiles: {
-		'living-room': { title: 'Sala de estar', count: 48 },
-		bedroom: { title: 'Quarto', count: 36 },
-		runners: { title: 'Passadeiras', count: 24 },
-		outdoor: { title: 'Exterior', count: 12 },
 	},
 	products: {
 		'stockholm-wool-flatweave': {

@@ -61,6 +61,8 @@ export interface SyncProductCombination {
 	reference?: string | null;
 	quantity?: number;
 	available?: boolean;
+	image?: string | null;
+	images?: string[];
 }
 
 export interface SyncProduct {
@@ -84,6 +86,10 @@ export interface SyncProduct {
 	categorySlug?: string;
 	/** Womni catalog category id — preferred when names/slugs repeat. */
 	categoryId?: string;
+	/** All category slugs this product belongs to. */
+	categorySlugs?: string[];
+	/** All Womni catalog category ids this product belongs to. */
+	categoryIds?: string[];
 	available?: boolean;
 }
 
@@ -104,6 +110,10 @@ export interface CategoryImportPayload {
 	category?: SyncCategory;
 	categories?: SyncCategory[];
 	replaceCategories?: boolean;
+}
+
+export interface SiteConfigImportPayload {
+	appearance?: Record<string, string>;
 }
 
 export interface CatalogExportPayload {

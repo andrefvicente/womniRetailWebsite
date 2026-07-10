@@ -2,16 +2,23 @@
 import { brandLogo } from '../data/images';
 import { footerLinks } from '../data/navigation';
 import { loadSiteNavigation } from '../lib/site/navigation';
+import { loadSiteNewsletter, resolveNewsletterCopy } from '../lib/site/newsletter';
 import Newsletter from './Newsletter.astro';
 import { useTranslations } from '../i18n';
 
 const t = useTranslations(Astro.currentLocale);
 const { footerShop, defaultCatalogHref } = await loadSiteNavigation();
+const siteNewsletter = await loadSiteNewsletter();
+const newsletterCopy = resolveNewsletterCopy(
+	Astro.currentLocale,
+	t.newsletter,
+	siteNewsletter.locales,
+);
 ---
 
 <footer class="footer">
 	<div class="container">
-		<Newsletter />
+		{siteNewsletter.enabled && <Newsletter copy={newsletterCopy} />}
 		<div class="footer__grid">
 			<div class="footer__brand">
 				<a href="/" class="footer__logo">
@@ -81,7 +88,7 @@ const { footerShop, defaultCatalogHref } = await loadSiteNavigation();
 	}
 	.footer__logo img {
 		display: block;
-		height: 2.5rem;
+		height: 3rem;
 		width: auto;
 	}
 	.footer__brand p {

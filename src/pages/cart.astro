@@ -4,10 +4,16 @@ export const prerender = false;
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Breadcrumbs from '../components/Breadcrumbs.astro';
 import { loadSiteNavigation } from '../lib/site/navigation';
-import { useTranslations } from '../i18n';
+import { loadSiteFeatures } from '../lib/site/features';
+import { formatPrice, useTranslations } from '../i18n';
 
 const t = useTranslations(Astro.currentLocale);
 const { defaultCatalogHref } = await loadSiteNavigation();
+const { catalogMode } = await loadSiteFeatures();
+
+if (catalogMode) {
+	return Astro.redirect(defaultCatalogHref);
+}
 
 const cartI18n = {
 	loading: t.cart.loading,
@@ -52,7 +58,7 @@ const cartI18n = {
 				<h2>{t.cart.summary}</h2>
 				<div class="cart-page__row">
 					<span>{t.cart.subtotal}</span>
-					<span data-subtotal>0 €</span>
+					<span data-subtotal>{formatPrice(0, Astro.currentLocale)}</span>
 				</div>
 				<div class="cart-page__row">
 					<span>{t.cart.shipping}</span>
@@ -60,7 +66,7 @@ const cartI18n = {
 				</div>
 				<div class="cart-page__row cart-page__row--total">
 					<span>{t.cart.total}</span>
-					<span data-total>0 €</span>
+					<span data-total>{formatPrice(0, Astro.currentLocale)}</span>
 				</div>
 				<p class="cart-page__note">{t.cart.freeShippingNote}</p>
 				<button type="button" class="btn btn--accent cart-page__checkout">{t.cart.checkout}</button>
@@ -80,7 +86,8 @@ const cartI18n = {
 		return new Intl.NumberFormat(cartI18n.locale, {
 			style: 'currency',
 			currency: cartI18n.currency,
-			maximumFractionDigits: 0,
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2,
 		}).format(n);
 	}
 

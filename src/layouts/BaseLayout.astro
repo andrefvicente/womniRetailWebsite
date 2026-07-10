@@ -7,6 +7,7 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import TrustBar from '../components/TrustBar.astro';
 import { useTranslations } from '../i18n';
+import { appearanceStyleTag, loadSiteAppearance } from '../lib/site/appearance';
 
 interface Props {
 	title: string;
@@ -17,6 +18,8 @@ const t = useTranslations(Astro.currentLocale);
 const { title, description = t.meta.defaultDescription } = Astro.props;
 const fullTitle = title === t.brand ? title : `${title} | ${t.meta.titleSuffix}`;
 const lang = Astro.currentLocale ?? 'pt';
+const appearance = await loadSiteAppearance();
+const themeVars = appearanceStyleTag(appearance);
 ---
 
 <!doctype html>
@@ -31,6 +34,7 @@ const lang = Astro.currentLocale ?? 'pt';
 		<link rel="preload" href={dmSans400} as="font" type="font/woff2" crossorigin />
 		<link rel="preload" href={cormorant400} as="font" type="font/woff2" crossorigin />
 		<title>{fullTitle}</title>
+		<style is:global set:html={themeVars} />
 	</head>
 	<body>
 		<TrustBar />

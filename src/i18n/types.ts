@@ -68,9 +68,6 @@ export interface UiDictionary {
 		shopAll: string;
 		viewSale: string;
 		heroImageAlt: string;
-		shopByRoom: string;
-		viewAll: string;
-		rugCount: (n: number) => string;
 		bestSellersSale: string;
 		seeMore: string;
 		sizeGuideTitle: string;
@@ -143,6 +140,5 @@ export interface UiDictionary {
 	styles: Record<StyleKey, string>;
 	rooms: Record<RoomKey, string>;
 	colors: Record<ColorKey, string>;
-	categoryTiles: Record<string, { title: string; count?: number }>;
 	products: Record<string, ProductCopy>;
 }

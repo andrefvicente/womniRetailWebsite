@@ -1,5 +1,6 @@
 import type { BadgeKey, Product, ProductBase, ProductFeature, VariantOptionGroup } from '../../data/types';
 import { normalizeOptionGroups } from '../variants';
+import { fromEuroAmount } from './prices';
 
 export interface ProductRow {
 	slug: string;
@@ -83,8 +84,8 @@ export function parseFeatures(raw: string | null | undefined): ProductFeature[] 
 export function rowToProductBase(row: ProductRow): ProductBase {
 	return {
 		slug: row.slug,
-		price: row.price,
-		originalPrice: row.original_price ?? undefined,
+		price: fromEuroAmount(row.price),
+		originalPrice: row.original_price != null ? fromEuroAmount(row.original_price) : undefined,
 		promotionStart: row.promotion_start ?? undefined,
 		promotionEnd: row.promotion_end ?? undefined,
 		image: row.image,

@@ -130,7 +130,7 @@ breadcrumbItems.push({ label: category.name });
 	</div>
 </BaseLayout>
 
-<script define:vars={{ productData, priceUpToTemplate: 'Até {max} €', priceMax: 800 }}>
+<script define:vars={{ productData, priceMax: 800 }}>
 	const grid = document.querySelector('[data-product-grid]');
 	const cards = [...document.querySelectorAll('[data-product-card]')];
 	const countEl = document.querySelector('[data-result-count]');
@@ -142,7 +142,13 @@ breadcrumbItems.push({ label: category.name });
 	const params = new URLSearchParams(window.location.search);
 
 	function formatPriceUpTo(max) {
-		return priceUpToTemplate.replace('{max}', String(max));
+		const formatted = new Intl.NumberFormat('pt-PT', {
+			style: 'currency',
+			currency: 'EUR',
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2,
+		}).format(Number(max));
+		return `Até ${formatted}`;
 	}
 
 	function getActiveFilters() {

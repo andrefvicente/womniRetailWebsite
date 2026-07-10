@@ -1,5 +1,5 @@
 ---
-import { Image } from 'astro:assets';
+import RemoteImage from './RemoteImage.astro';
 import type { Product } from '../data/types';
 import { formatPrice, useTranslations } from '../i18n';
 
@@ -18,7 +18,7 @@ const variantHint = product.optionGroups?.[0]?.values[0]?.name ?? '';
 
 <article class="product-card" data-product-card data-slug={product.slug}>
 	<a href={`/product/${product.slug}`} class="product-card__media">
-		<Image src={product.image} alt={product.name} width={400} height={500} loading="lazy" />
+		<RemoteImage src={product.image} alt={product.name} width={400} height={500} loading="lazy" />
 		{product.badge === 'sale' && discount && <span class="badge badge--sale">-{discount}%</span>}
 		{product.badge === 'new' && <span class="badge badge--new">{t.badges.new}</span>}
 		{product.badge === 'bestseller' && <span class="badge badge--new">{t.badges.bestseller}</span>}

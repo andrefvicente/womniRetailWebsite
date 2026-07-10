@@ -221,3 +221,37 @@ export function resolveImportedCategorySlug(
 	}
 	return productCategorySlug?.trim() || null;
 }
+
+export function resolveImportedCategorySlugs(
+	product: {
+		categorySlug?: string;
+		categoryId?: string;
+		categorySlugs?: string[];
+		categoryIds?: string[];
+	},
+	maps: Pick<UniqueCategorySlugsResult, 'slugById'>,
+): string[] {
+	const slugs: string[] = [];
+	const seen = new Set<string>();
+
+	const add = (slug: string | null | undefined) => {
+		const trimmed = slug?.trim();
+		if (trimmed && !seen.has(trimmed)) {
+			seen.add(trimmed);
+			slugs.push(trimmed);
+		}
+	};
+
+	for (const id of product.categoryIds ?? []) {
+		add(maps.slugById.get(id));
+	}
+	for (const slug of product.categorySlugs ?? []) {
+		add(slug);
+	}
+
+	if (!slugs.length) {
+		add(resolveImportedCategorySlug(product.categorySlug, product.categoryId, maps));
+	}
+
+	return slugs;
+}

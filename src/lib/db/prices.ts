@@ -1,12 +1,17 @@
 import type { ProductCombination } from '../../data/types';
 
-/** Site stores/display prices as whole euros (189 → €189). */
+/** Normalise a euro amount to 2 decimals for D1 storage (30.99 stays 30.99). */
 export function toEuroAmount(value: unknown): number {
 	const amount = Number(value);
 	if (!Number.isFinite(amount)) {
 		return 0;
 	}
-	return Math.round(amount);
+	return Math.round((amount + Number.EPSILON) * 100) / 100;
+}
+
+/** Read a stored euro amount, normalising to 2 decimals for display/comparisons. */
+export function fromEuroAmount(value: unknown): number {
+	return toEuroAmount(value);
 }
 
 function minPositivePrice(combinations: ProductCombination[]): number | null {
@@ -14,6 +19,15 @@ function minPositivePrice(combinations: ProductCombination[]): number | null {
 		return null;
 	}
 	return Math.min(...combinations.map((combo) => combo.price));
+}
+
+export function combinationForDisplay(combo: ProductCombination): ProductCombination {
+	return {
+		...combo,
+		price: fromEuroAmount(combo.price),
+		originalPrice:
+			combo.originalPrice != null ? fromEuroAmount(combo.originalPrice) : undefined,
+	};
 }
 
 export function resolveProductPrice(
