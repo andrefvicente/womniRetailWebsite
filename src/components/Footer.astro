@@ -3,17 +3,23 @@ import { brandLogo } from '../data/images';
 import { footerLinks } from '../data/navigation';
 import { loadSiteNavigation } from '../lib/site/navigation';
 import { loadSiteNewsletter, resolveNewsletterCopy } from '../lib/site/newsletter';
+import { formatFooterLegal, loadSiteCompany } from '../lib/site/company';
 import Newsletter from './Newsletter.astro';
 import { useTranslations } from '../i18n';
 
 const t = useTranslations(Astro.currentLocale);
 const { footerShop, defaultCatalogHref } = await loadSiteNavigation();
 const siteNewsletter = await loadSiteNewsletter();
+const siteCompany = await loadSiteCompany();
 const newsletterCopy = resolveNewsletterCopy(
 	Astro.currentLocale,
 	t.newsletter,
 	siteNewsletter.locales,
 );
+const footerYear = new Date().getFullYear();
+const footerLegal = siteCompany
+	? formatFooterLegal(siteCompany, footerYear, t.footer.rights)
+	: `© ${footerYear} ${t.brand}. ${t.footer.rights}`;
 ---
 
 <footer class="footer">
@@ -58,7 +64,7 @@ const newsletterCopy = resolveNewsletterCopy(
 			</div>
 		</div>
 		<div class="footer__bottom">
-			<p>&copy; {new Date().getFullYear()} {t.brand}. {t.footer.rights}</p>
+			<p>{footerLegal}</p>
 			<div class="footer__payments">
 				<span>Visa</span>
 				<span>Mastercard</span>

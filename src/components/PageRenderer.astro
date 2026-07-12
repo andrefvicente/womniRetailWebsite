@@ -1,0 +1,100 @@
+---
+import HeroSection from './blocks/HeroSection.astro';
+import ProductGridSection from './blocks/ProductGridSection.astro';
+import PromoSection from './blocks/PromoSection.astro';
+import type { Product } from '../data/types';
+import type { PageBlock, PageConfig } from '../lib/site/page-types';
+
+interface Props {
+	page: PageConfig;
+	locale?: string;
+	defaultCatalogHref: string;
+	products: Product[];
+	homeDefaults: {
+		eyebrow: string;
+		title: string;
+		lead: string;
+		shopAll: string;
+		viewSale: string;
+		heroImageAlt: string;
+		bestSellersSale: string;
+		seeMore: string;
+		sizeGuideTitle: string;
+		sizeGuideLead: string;
+		sizeGuideCta: string;
+		sizeTips: { room: string; tip: string }[];
+		newArrivals: string;
+	};
+	editMode?: boolean;
+}
+
+const { page, locale, defaultCatalogHref, products, homeDefaults, editMode = false } = Astro.props;
+
+const visibleSections = [...page.sections]
+	.filter((block) => block.visible !== false)
+	.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+---
+
+{visibleSections.map((block: PageBlock) => {
+	if (block.type === 'hero') {
+		return (
+			<HeroSection
+				blockId={block.id}
+				props={block.props}
+				locale={locale}
+				defaultCatalogHref={defaultCatalogHref}
+				defaults={{
+					eyebrow: homeDefaults.eyebrow,
+					title: homeDefaults.title,
+					lead: homeDefaults.lead,
+					shopAll: homeDefaults.shopAll,
+					viewSale: homeDefaults.viewSale,
+					heroImageAlt: homeDefaults.heroImageAlt,
+				}}
+				editMode={editMode}
+			/>
+		);
+	}
+
+	if (block.type === 'product-grid') {
+		const gridProps = block.props as import('../lib/site/page-types').ProductGridBlockProps;
+		const titleDefault =
+			gridProps.query?.variant === 'new-arrivals'
+				? homeDefaults.newArrivals
+				: homeDefaults.bestSellersSale;
+
+		return (
+			<ProductGridSection
+				blockId={block.id}
+				props={gridProps}
+				locale={locale}
+				defaultCatalogHref={defaultCatalogHref}
+				products={products}
+				defaults={{
+					title: titleDefault,
+					seeMore: homeDefaults.seeMore,
+				}}
+				editMode={editMode}
+			/>
+		);
+	}
+
+	if (block.type === 'promo') {
+		return (
+			<PromoSection
+				blockId={block.id}
+				props={block.props}
+				locale={locale}
+				defaults={{
+					sizeGuideTitle: homeDefaults.sizeGuideTitle,
+					sizeGuideLead: homeDefaults.sizeGuideLead,
+					sizeGuideCta: homeDefaults.sizeGuideCta,
+					sizeTips: homeDefaults.sizeTips,
+				}}
+				editMode={editMode}
+			/>
+		);
+	}
+
+	return null;
+})}

@@ -1,0 +1,88 @@
+---
+import { resolveLocaleCopy } from '../../lib/site/pages';
+import type { PromoBlockProps } from '../../lib/site/page-types';
+
+interface Props {
+	blockId: string;
+	props: PromoBlockProps;
+	locale?: string;
+	defaults: {
+		sizeGuideTitle: string;
+		sizeGuideLead: string;
+		sizeGuideCta: string;
+		sizeTips: { room: string; tip: string }[];
+	};
+	editMode?: boolean;
+}
+
+const { blockId, props, locale, defaults, editMode = false } = Astro.props;
+const copy = resolveLocaleCopy(locale, props.locales, defaults);
+const anchorId = props.anchorId?.trim() || 'size-guide';
+const sizeTips = Array.isArray(copy.sizeTips) ? copy.sizeTips : defaults.sizeTips;
+---
+
+<section
+	class="promo"
+	data-block-id={blockId}
+	data-block-type="promo"
+	data-editable-root={editMode ? 'true' : undefined}
+>
+	<div class="container promo__inner">
+		<div>
+			<h2 data-editable="sizeGuideTitle">{copy.sizeGuideTitle}</h2>
+			<p data-editable="sizeGuideLead">{copy.sizeGuideLead}</p>
+			<a href={`#${anchorId}`} class="btn btn--outline" data-editable="sizeGuideCta">{copy.sizeGuideCta}</a>
+		</div>
+		<ul class="promo__sizes" id={anchorId} data-editable="sizeTips">
+			{sizeTips.map((tip) => (
+				<li>
+					<strong>{tip.room}</strong> — {tip.tip}
+				</li>
+			))}
+		</ul>
+	</div>
+</section>
+
+<style>
+	.promo {
+		padding: 4rem 0;
+		background: var(--color-surface);
+		border-block: 1px solid var(--color-border);
+	}
+	.promo__inner {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 3rem;
+		align-items: start;
+	}
+	.promo h2 {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 2rem;
+		font-weight: 500;
+	}
+	.promo p {
+		margin: 1rem 0 1.5rem;
+		color: var(--color-muted);
+		max-width: 24rem;
+	}
+	.promo__sizes {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.promo__sizes li {
+		padding: 0.75rem 0;
+		border-bottom: 1px solid var(--color-border);
+		font-size: 0.9375rem;
+	}
+	.promo__sizes strong {
+		display: inline-block;
+		min-width: 7rem;
+	}
+	@media (max-width: 1024px) {
+		.promo__inner {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

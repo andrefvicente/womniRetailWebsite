@@ -1,25 +1,121 @@
 ---
 import { useTranslations } from '../i18n';
+import { resolveRequestLocale } from '../lib/i18n/resolve-request-locale';
+import { loadSiteTrustBar, resolveTrustBarItems } from '../lib/site/trust-bar';
 
-const t = useTranslations(Astro.currentLocale);
-const icons = ['🚚', '↩', '✓', '★'];
+interface Props {
+	editMode?: boolean;
+	locale?: string;
+}
+
+const requestLocale = resolveRequestLocale(Astro.url, Astro.props.locale ?? Astro.currentLocale);
+const t = useTranslations(requestLocale);
+const editMode = Astro.props.editMode === true;
+const remote = await loadSiteTrustBar({ editMode });
+const enabled = remote ? remote.enabled : true;
+const showText = remote ? remote.showText : true;
+const backgroundColor = remote?.backgroundColor ?? 'var(--color-accent)';
+const textColor = remote?.textColor ?? '#ffffff';
+const items = resolveTrustBarItems(
+	requestLocale,
+	t.trust,
+	remote?.locales ?? {},
+	showText,
+).filter((item) => item.visible !== false);
+const trustBarConfig = {
+	enabled,
+	showText,
+	backgroundColor,
+	textColor,
+	items,
+};
 ---
 
-<div class="trust-bar">
-	<div class="container trust-bar__inner">
-		{t.trust.map((text, i) => (
-			<span class="trust-bar__item">
-				<span aria-hidden="true">{icons[i]}</span>
-				{text}
-			</span>
-		))}
+{enabled && items.length > 0 && (
+	<div
+		class="trust-bar"
+		data-block-id="trust-bar"
+		data-block-type="trust-bar"
+		data-trust-bar-enabled={enabled ? 'true' : 'false'}
+		style={`background:${backgroundColor};color:${textColor}`}
+	>
+		<div class="container trust-bar__inner">
+			{items.map((item) => (
+				<span class="trust-bar__item">
+					<span class="trust-bar__icon" aria-hidden="true">{item.icon}</span>
+					{showText && item.text ? <span class="trust-bar__text" data-editable="text">{item.text}</span> : null}
+				</span>
+			))}
+		</div>
 	</div>
-</div>
+)}
+
+{editMode && (
+	<script define:vars={{ trustBarConfig }}>
+		function applyTrustBarConfig(config) {
+			const bar = document.querySelector('[data-block-id="trust-bar"]');
+			if (!config || config.enabled === false) {
+				bar?.remove();
+				return;
+			}
+
+			let target = bar;
+			if (!target) {
+				target = document.createElement('div');
+				target.className = 'trust-bar';
+				target.dataset.blockId = 'trust-bar';
+				target.dataset.blockType = 'trust-bar';
+				target.dataset.trustBarEnabled = 'true';
+				target.innerHTML = '<div class="container trust-bar__inner"></div>';
+				document.body.prepend(target);
+			}
+
+			target.dataset.trustBarEnabled = 'true';
+			target.style.background = config.backgroundColor || '';
+			target.style.color = config.textColor || '';
+			const inner = target.querySelector('.trust-bar__inner');
+			if (!inner) {
+				return;
+			}
+
+			inner.innerHTML = '';
+			for (const item of config.items || []) {
+				if (item.visible === false) {
+					continue;
+				}
+				const row = document.createElement('span');
+				row.className = 'trust-bar__item';
+				const icon = document.createElement('span');
+				icon.className = 'trust-bar__icon';
+				icon.setAttribute('aria-hidden', 'true');
+				icon.textContent = item.icon || '•';
+				row.appendChild(icon);
+				if (config.showText !== false && item.text) {
+					const text = document.createElement('span');
+					text.className = 'trust-bar__text';
+					text.textContent = item.text;
+					row.appendChild(text);
+				}
+				inner.appendChild(row);
+			}
+		}
+
+		window.addEventListener('message', (event) => {
+			const data = event.data;
+			if (!data) {
+				return;
+			}
+			if (data.type === 'UPDATE_TRUST_BAR') {
+				applyTrustBarConfig(data.config);
+			}
+		});
+
+		applyTrustBarConfig(trustBarConfig);
+	</script>
+)}
 
 <style>
 	.trust-bar {
-		background: var(--color-accent);
-		color: white;
 		font-size: 0.75rem;
 		letter-spacing: 0.02em;
 	}

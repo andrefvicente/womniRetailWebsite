@@ -10,8 +10,16 @@ import { getLocalizedProductFromDb, listLocalizedProducts } from '../lib/db/prod
 const dictionaries: Record<Locale, UiDictionary> = { pt };
 
 export function useTranslations(locale?: string): UiDictionary {
-	const key = locale && isLocale(locale) ? locale : defaultLocale;
-	return dictionaries[key];
+	if (locale && isLocale(locale)) {
+		return dictionaries[locale];
+	}
+
+	const short = locale?.split(/[-_]/)[0]?.toLowerCase();
+	if (short && isLocale(short)) {
+		return dictionaries[short as Locale];
+	}
+
+	return dictionaries[defaultLocale];
 }
 
 export function localizeProduct(base: ProductBase, locale?: string): Product {

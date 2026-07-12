@@ -1,0 +1,82 @@
+---
+import ProductCard from '../ProductCard.astro';
+import { buildSeeMoreHref, resolveProductGrid } from '../../lib/site/product-grid';
+import { resolveLocaleCopy } from '../../lib/site/pages';
+import type { Product } from '../../data/types';
+import type { ProductGridBlockProps } from '../../lib/site/page-types';
+
+interface Props {
+	blockId: string;
+	props: ProductGridBlockProps;
+	locale?: string;
+	defaultCatalogHref: string;
+	products: Product[];
+	defaults: {
+		title: string;
+		seeMore: string;
+	};
+	editMode?: boolean;
+}
+
+const { blockId, props, locale, defaultCatalogHref, products, defaults, editMode = false } = Astro.props;
+const copy = resolveLocaleCopy(locale, props.locales, defaults);
+const items = resolveProductGrid(products, props.query);
+const seeMoreHref = buildSeeMoreHref(defaultCatalogHref, props.seeMoreQuery);
+---
+
+<section
+	class="featured"
+	data-block-id={blockId}
+	data-block-type="product-grid"
+	data-editable-root={editMode ? 'true' : undefined}
+>
+	<div class="container">
+		<header class="section-header">
+			<h2 data-editable="title">{copy.title}</h2>
+			<a href={seeMoreHref} data-editable="seeMore">{copy.seeMore}</a>
+		</header>
+		<div class="product-grid">
+			{items.map((product) => (
+				<ProductCard product={product} />
+			))}
+		</div>
+	</div>
+</section>
+
+<style>
+	.section-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		margin-bottom: 2rem;
+	}
+	.section-header h2 {
+		margin: 0;
+		font-family: var(--font-display);
+		font-size: 2rem;
+		font-weight: 500;
+	}
+	.section-header a {
+		font-size: 0.875rem;
+		color: var(--color-muted);
+		text-decoration: underline;
+	}
+	.featured {
+		padding: 4rem 0;
+	}
+	.product-grid {
+		display: grid;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 1.5rem;
+	}
+	@media (max-width: 1024px) {
+		.product-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+	@media (max-width: 480px) {
+		.product-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

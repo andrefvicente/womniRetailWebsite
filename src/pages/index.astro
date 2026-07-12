@@ -1,208 +1,59 @@
 ---
 export const prerender = false;
 
-import RemoteImage from '../components/RemoteImage.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { rugImages } from '../data/images';
-import ProductCard from '../components/ProductCard.astro';
+import PageRenderer from '../components/PageRenderer.astro';
 import { loadSiteNavigation } from '../lib/site/navigation';
+import { loadPageConfig } from '../lib/site/pages';
+import { mergePageConfig } from '../lib/site/page-defaults';
+import { resolveRequestLocale } from '../lib/i18n/resolve-request-locale';
 import { getLocalizedProducts, useTranslations } from '../i18n';
 
-const t = useTranslations(Astro.currentLocale);
+const requestLocale = resolveRequestLocale(Astro.url, Astro.currentLocale);
+const t = useTranslations(requestLocale);
+const editMode = Astro.url.searchParams.has('edit');
+const remotePage = await loadPageConfig('home', { editMode });
+const page = mergePageConfig('home', remotePage);
 const { defaultCatalogHref } = await loadSiteNavigation();
-const localized = await getLocalizedProducts(Astro.currentLocale);
-const featured = localized.filter((p) => p.badge === 'bestseller' || p.badge === 'sale').slice(0, 4);
-const newArrivals = localized.filter((p) => p.badge === 'new').concat(localized).slice(0, 4);
+const products = await getLocalizedProducts(requestLocale);
 ---
 
 <BaseLayout title={t.brand} description={t.home.metaDescription}>
-	<section class="hero">
-		<div class="container hero__inner">
-			<div class="hero__copy">
-				<p class="hero__eyebrow">{t.home.eyebrow}</p>
-				<h1>{t.home.title}</h1>
-				<p class="hero__lead">{t.home.lead}</p>
-				<div class="hero__cta">
-					<a href={defaultCatalogHref} class="btn btn--accent">{t.home.shopAll}</a>
-					<a href={`${defaultCatalogHref}?sale=true`} class="btn btn--outline">{t.home.viewSale}</a>
-				</div>
-			</div>
-			<div class="hero__visual">
-				<RemoteImage
-					src={rugImages.hero}
-					alt={t.home.heroImageAlt}
-					width={700}
-					height={875}
-					loading="eager"
-					fetchpriority="high"
-				/>
-			</div>
-		</div>
-	</section>
-
-	<section class="featured">
-		<div class="container">
-			<header class="section-header">
-				<h2>{t.home.bestSellersSale}</h2>
-				<a href={`${defaultCatalogHref}?badge=bestseller`}>{t.home.seeMore}</a>
-			</header>
-			<div class="product-grid">
-				{featured.map((product) => (
-					<ProductCard product={product} />
-				))}
-			</div>
-		</div>
-	</section>
-
-	<section class="promo">
-		<div class="container promo__inner">
-			<div>
-				<h2>{t.home.sizeGuideTitle}</h2>
-				<p>{t.home.sizeGuideLead}</p>
-				<a href="#size-guide" class="btn btn--outline">{t.home.sizeGuideCta}</a>
-			</div>
-			<ul class="promo__sizes" id="size-guide">
-				{t.home.sizeTips.map((tip) => (
-					<li>
-						<strong>{tip.room}</strong> — {tip.tip}
-					</li>
-				))}
-			</ul>
-		</div>
-	</section>
-
-	<section class="featured">
-		<div class="container">
-			<header class="section-header">
-				<h2>{t.home.newArrivals}</h2>
-				<a href={`${defaultCatalogHref}?sort=new`}>{t.home.seeMore}</a>
-			</header>
-			<div class="product-grid">
-				{newArrivals.map((product) => (
-					<ProductCard product={product} />
-				))}
-			</div>
-		</div>
-	</section>
+	<PageRenderer
+		page={page}
+		locale={requestLocale}
+		defaultCatalogHref={defaultCatalogHref}
+		products={products}
+		homeDefaults={t.home}
+		editMode={editMode}
+	/>
 </BaseLayout>
 
-<style>
-	.hero {
-		background: var(--color-surface);
-		border-bottom: 1px solid var(--color-border);
-	}
-	.hero__inner {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 3rem;
-		align-items: center;
-		padding: 3rem 0 4rem;
-	}
-	.hero__eyebrow {
-		margin: 0;
-		font-size: 0.75rem;
-		font-weight: 600;
-		letter-spacing: 0.12em;
-		text-transform: uppercase;
-		color: var(--color-accent);
-	}
-	.hero h1 {
-		margin: 0.75rem 0 0;
-		font-family: var(--font-display);
-		font-size: clamp(2.5rem, 5vw, 3.75rem);
-		font-weight: 500;
-		line-height: 1.1;
-	}
-	.hero__lead {
-		margin: 1.25rem 0 0;
-		font-size: 1.0625rem;
-		color: var(--color-muted);
-		max-width: 28rem;
-	}
-	.hero__cta {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 1rem;
-		margin-top: 2rem;
-	}
-	.hero__visual img {
-		width: 100%;
-		aspect-ratio: 4 / 5;
-		object-fit: cover;
-	}
-	.section-header {
-		display: flex;
-		justify-content: space-between;
-		align-items: baseline;
-		margin-bottom: 2rem;
-	}
-	.section-header h2 {
-		margin: 0;
-		font-family: var(--font-display);
-		font-size: 2rem;
-		font-weight: 500;
-	}
-	.section-header a {
-		font-size: 0.875rem;
-		color: var(--color-muted);
-		text-decoration: underline;
-	}
-	.featured {
-		padding: 4rem 0;
-	}
-	.product-grid {
-		display: grid;
-		grid-template-columns: repeat(4, 1fr);
-		gap: 1.5rem;
-	}
-	.promo {
-		padding: 4rem 0;
-		background: var(--color-surface);
-		border-block: 1px solid var(--color-border);
-	}
-	.promo__inner {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 3rem;
-		align-items: start;
-	}
-	.promo h2 {
-		margin: 0;
-		font-family: var(--font-display);
-		font-size: 2rem;
-		font-weight: 500;
-	}
-	.promo p {
-		margin: 1rem 0 1.5rem;
-		color: var(--color-muted);
-		max-width: 24rem;
-	}
-	.promo__sizes {
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-	.promo__sizes li {
-		padding: 0.75rem 0;
-		border-bottom: 1px solid var(--color-border);
-		font-size: 0.9375rem;
-	}
-	.promo__sizes strong {
-		display: inline-block;
-		min-width: 7rem;
-	}
-	@media (max-width: 1024px) {
-		.hero__inner,
-		.promo__inner {
-			grid-template-columns: 1fr;
+{editMode && (
+	<style is:global>
+		[data-block-id] {
+			position: relative;
+			transition: outline-color 0.15s ease;
 		}
-		.product-grid {
-			grid-template-columns: repeat(2, 1fr);
+		[data-block-id].is-editor-selected {
+			outline: 2px solid #987933;
+			outline-offset: 4px;
 		}
-	}
-	@media (max-width: 480px) {
-		.product-grid {
-			grid-template-columns: 1fr;
-		}
-	}
-</style>
+	</style>
+	<script>
+		window.addEventListener('message', (event) => {
+			const data = event.data;
+			if (!data || data.type !== 'SELECT_BLOCK' || !data.blockId) {
+				return;
+			}
+			document.querySelectorAll('[data-block-id]').forEach((element) => {
+				element.classList.remove('is-editor-selected');
+			});
+			const target = document.querySelector(`[data-block-id="${data.blockId}"]`);
+			if (target) {
+				target.classList.add('is-editor-selected');
+				target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			}
+		});
+	</script>
+)}

@@ -1,0 +1,107 @@
+---
+import RemoteImage from '../RemoteImage.astro';
+import { rugImages } from '../../data/images';
+import { resolveLocaleCopy } from '../../lib/site/pages';
+import type { HeroBlockProps } from '../../lib/site/page-types';
+
+interface Props {
+	blockId: string;
+	props: HeroBlockProps;
+	locale?: string;
+	defaultCatalogHref: string;
+	defaults: {
+		eyebrow: string;
+		title: string;
+		lead: string;
+		shopAll: string;
+		viewSale: string;
+		heroImageAlt: string;
+	};
+	editMode?: boolean;
+}
+
+const { blockId, props, locale, defaultCatalogHref, defaults, editMode = false } = Astro.props;
+const copy = resolveLocaleCopy(locale, props.locales, defaults);
+const image = props.image?.trim() || rugImages.hero;
+---
+
+<section
+	class="hero"
+	data-block-id={blockId}
+	data-block-type="hero"
+	data-editable-root={editMode ? 'true' : undefined}
+>
+	<div class="container hero__inner">
+		<div class="hero__copy">
+			<p class="hero__eyebrow" data-editable="eyebrow">{copy.eyebrow}</p>
+			<h1 data-editable="title">{copy.title}</h1>
+			<p class="hero__lead" data-editable="lead">{copy.lead}</p>
+			<div class="hero__cta">
+				<a href={defaultCatalogHref} class="btn btn--accent" data-editable="shopAll">{copy.shopAll}</a>
+				<a href={`${defaultCatalogHref}?sale=true`} class="btn btn--outline" data-editable="viewSale">{copy.viewSale}</a>
+			</div>
+		</div>
+		<div class="hero__visual">
+			<RemoteImage
+				src={image}
+				alt={copy.heroImageAlt || defaults.heroImageAlt}
+				width={700}
+				height={875}
+				loading="eager"
+				fetchpriority="high"
+				data-editable="image"
+			/>
+		</div>
+	</div>
+</section>
+
+<style>
+	.hero {
+		background: var(--color-surface);
+		border-bottom: 1px solid var(--color-border);
+	}
+	.hero__inner {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 3rem;
+		align-items: center;
+		padding: 3rem 0 4rem;
+	}
+	.hero__eyebrow {
+		margin: 0;
+		font-size: 0.75rem;
+		font-weight: 600;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--color-accent);
+	}
+	.hero h1 {
+		margin: 0.75rem 0 0;
+		font-family: var(--font-display);
+		font-size: clamp(2.5rem, 5vw, 3.75rem);
+		font-weight: 500;
+		line-height: 1.1;
+	}
+	.hero__lead {
+		margin: 1.25rem 0 0;
+		font-size: 1.0625rem;
+		color: var(--color-muted);
+		max-width: 28rem;
+	}
+	.hero__cta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem;
+		margin-top: 2rem;
+	}
+	.hero__visual img {
+		width: 100%;
+		aspect-ratio: 4 / 5;
+		object-fit: cover;
+	}
+	@media (max-width: 1024px) {
+		.hero__inner {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>
